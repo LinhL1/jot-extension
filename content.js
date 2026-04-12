@@ -19,24 +19,122 @@ function setReadmarkEnabled(enabled) {
   }
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === 'TOGGLE_READMARK') {
-    setReadmarkEnabled(!!msg.enabled);
-  }
-});
+function applyMinimizedUi(minimized) {
+  const shell = document.querySelector('#readmark-widget-container .readmark-widget');
+  const toggleBtn = document.querySelector('#readmark-widget-container [data-action="toggle"]');
+  if (!shell || !toggleBtn) return;
+  if (minimized) shell.classList.add('readmark-minimized');
+  else shell.classList.remove('readmark-minimized');
+  toggleBtn.textContent = minimized ? '+' : '−';
+  toggleBtn.title = minimized ? 'Expand' : 'Minimize';
+  toggleBtn.setAttribute('aria-expanded', minimized ? 'false' : 'true');
+}
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== 'local' || !changes.readmarkEnabled) return;
-  setReadmarkEnabled(changes.readmarkEnabled.newValue ?? true);
-});
+function updateHighlightStats(highlights) {
+  const countEl = document.getElementById('readmark-count');
+  const tagsEl = document.getElementById('readmark-tags-count');
+  if (countEl) countEl.textContent = highlights.length;
+  if (tagsEl) {
+    const allTags = new Set();
+    highlights.forEach((h) => (h.tags || []).forEach((t) => allTags.add(t)));
+    tagsEl.textContent = allTags.size;
+  }
+}
+
+let highlightRefreshGeneration = 0;
+
+function refreshHighlightsFromStorage() {
+  const list = document.getElementById('readmark-highlights-list');
+  if (!list) return;
+
+  const gen = ++highlightRefreshGeneration;
+  const activeTab = document.querySelector('.readmark-tab.active');
+  const tabId = activeTab?.dataset.tab || 'recent';
+
+  chrome.storage.local.get(['readmarks'], (res) => {
+    if (gen !== highlightRefreshGeneration) return;
+
+    const highlights = res.readmarks || [];
+
+    if (tabId === 'tags') {
+      updateHighlightStats(highlights);
+      renderTagsView(highlights, list);
+      return;
+    }
+
+    const input = document.getElementById('readmark-search');
+    const query = (input?.value || '').toLowerCase().trim();
+    if (query) {
+      const filtered = highlights.filter(
+        (h) =>
+          (h.text || '').toLowerCase().includes(query) ||
+          (h.note || '').toLowerCase().includes(query) ||
+          (h.tags || []).some((t) => t.toLowerCase().includes(query))
+      );
+      renderHighlights(filtered, list);
+    } else {
+      renderHighlights(highlights, list);
+    }
+    updateHighlightStats(highlights);
+  });
+}
+
+function hydrateHighlightsList(highlights) {
+  const list = document.getElementById('readmark-highlights-list');
+  if (!list) return;
+
+  updateHighlightStats(highlights);
+
+  if (!highlights.length) {
+    list.innerHTML = `
+      <div class="readmark-highlight-item">
+        <div class="readmark-highlight-text">No highlights yet</div>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = highlights
+    .slice()
+    .reverse()
+    .map(
+      (h) => `
+        <div class="readmark-highlight-item">
+
+          <div class="readmark-highlight-text">
+            "${h.text}"
+          </div>
+
+          ${h.note ? `
+            <div style="margin-top:6px; font-size:12px; color:#444;">
+              ${h.note}
+            </div>
+          ` : ''}
+
+          ${h.tags && h.tags.length ? `
+            <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+              ${h.tags.map((t) => `
+                <span class="readmark-tag">${t}</span>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          ${h.timestamp ? `
+            <div style="margin-top:8px; font-size:10px; color:#aaa;">
+              ${new Date(h.timestamp).toLocaleDateString()}
+            </div>
+          ` : ''}
+
+        </div>
+      `
+    )
+    .join('');
+}
 
 // Inject the floating widget into the page
-function injectWidget() {
-    
+function injectWidget(initialStorage) {
   if (document.getElementById('readmark-widget-container')) {
     return;
-
-    
   }
 
   const container = document.createElement('div');
@@ -384,13 +482,10 @@ function injectWidget() {
     <div class="readmark-widget">
       <div class="readmark-panel">
       <div class="readmark-header">
-        <div class="readmark-title">Jot</div>
+        <div class="readmark-title"> Jot</div>
         <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
       </div>
-      <div class="readmark-size-row">
-        <label for="readmark-width-slider">Width</label>
-        <input type="range" class="readmark-width-slider" id="readmark-width-slider" min="280" max="640" step="10" value="420" />
-      </div>
+     
 
       <div class="readmark-content">
       <div style="margin-bottom:10px;">
@@ -438,8 +533,8 @@ function injectWidget() {
   document.body.appendChild(container);
   container.style.display = readmarkEnabled ? '' : 'none';
 
-  setupWidgetEvents();
-  loadAndDisplayHighlights();
+  setupWidgetEvents(initialStorage);
+  hydrateHighlightsList((initialStorage && initialStorage.readmarks) || []);
   setupTabs();
   setupSearch();
 }
@@ -480,11 +575,20 @@ function setupWidgetDrag(container, shell, fabGuard) {
   let origTop = 0;
   let dragStartedOnFab = false;
 
+  let resizeSaveTimer = null;
   function savePosition() {
     const r = container.getBoundingClientRect();
     chrome.storage.local.set({
       readmarkWidgetPosition: { left: Math.round(r.left), top: Math.round(r.top) }
     });
+  }
+
+  function scheduleResizePositionSave() {
+    clearTimeout(resizeSaveTimer);
+    resizeSaveTimer = setTimeout(() => {
+      resizeSaveTimer = null;
+      savePosition();
+    }, 120);
   }
 
   function onPointerDown(e) {
@@ -537,11 +641,11 @@ function setupWidgetDrag(container, shell, fabGuard) {
   window.addEventListener('resize', () => {
     const r = container.getBoundingClientRect();
     applyWidgetPosition(container, r.left, r.top);
-    savePosition();
+    scheduleResizePositionSave();
   });
 }
 
-function setupWidgetEvents() {
+function setupWidgetEvents(initialStorage) {
   const container = document.getElementById('readmark-widget-container');
   if (!container) return;
 
@@ -553,13 +657,6 @@ function setupWidgetEvents() {
   const fabGuard = { ignoreNextClick: false };
   if (shell) {
     setupWidgetDrag(container, shell, fabGuard);
-  }
-
-  function syncMinimizeUi(minimized) {
-    if (!toggleBtn || !shell) return;
-    toggleBtn.textContent = minimized ? '+' : '−';
-    toggleBtn.title = minimized ? 'Expand' : 'Minimize';
-    toggleBtn.setAttribute('aria-expanded', minimized ? 'false' : 'true');
   }
 
   if (slider) {
@@ -576,7 +673,7 @@ function setupWidgetEvents() {
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const minimized = shell.classList.toggle('readmark-minimized');
-      syncMinimizeUi(minimized);
+      applyMinimizedUi(minimized);
       chrome.storage.local.set({ readmarkWidgetMinimized: minimized });
     });
   }
@@ -590,82 +687,25 @@ function setupWidgetEvents() {
       }
       if (!shell.classList.contains('readmark-minimized')) return;
       shell.classList.remove('readmark-minimized');
-      syncMinimizeUi(false);
+      applyMinimizedUi(false);
       chrome.storage.local.set({ readmarkWidgetMinimized: false });
     });
   }
 
-  chrome.storage.local.get(
-    ['readmarkWidgetWidth', 'readmarkWidgetPosition', 'readmarkWidgetMinimized'],
-    (res) => {
-      const w = res.readmarkWidgetWidth ?? DEFAULT_WIDGET_WIDTH;
-      applyWidgetWidth(w);
-      const pos = res.readmarkWidgetPosition;
-      if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
-        requestAnimationFrame(() => {
-          applyWidgetPosition(container, pos.left, pos.top);
-        });
-      }
-      if (res.readmarkWidgetMinimized === true && shell) {
-        shell.classList.add('readmark-minimized');
-        syncMinimizeUi(true);
-      }
-    }
-  );
+  const boot = initialStorage || {};
+  const w = boot.readmarkWidgetWidth ?? DEFAULT_WIDGET_WIDTH;
+  applyWidgetWidth(w);
+  const pos = boot.readmarkWidgetPosition;
+  if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+    requestAnimationFrame(() => {
+      applyWidgetPosition(container, pos.left, pos.top);
+    });
+  }
+  if (boot.readmarkWidgetMinimized === true && shell) {
+    shell.classList.add('readmark-minimized');
+    applyMinimizedUi(true);
+  }
 }
-
-function loadAndDisplayHighlights() {
-  chrome.storage.local.get(['readmarks'], (res) => {
-    const highlights = res.readmarks || [];
-    const list = document.getElementById('readmark-highlights-list');
-
-    document.getElementById('readmark-count').textContent = highlights.length;
-
-    if (!highlights.length) {
-      list.innerHTML = `
-        <div class="readmark-highlight-item">
-          <div class="readmark-highlight-text">No highlights yet</div>
-        </div>
-      `;
-      return;
-    }
-
-    list.innerHTML = highlights
-      .slice()
-      .reverse()
-      .map(h => `
-        <div class="readmark-highlight-item">
-
-          <div class="readmark-highlight-text">
-            "${h.text}"
-          </div>
-
-          ${h.note ? `
-            <div style="margin-top:6px; font-size:12px; color:#444;">
-              ${h.note}
-            </div>
-          ` : ''}
-
-          ${h.tags && h.tags.length ? `
-            <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
-              ${h.tags.map(t => `
-                <span class="readmark-tag">${t}</span>
-              `).join('')}
-            </div>
-          ` : ''}
-
-          ${h.timestamp ? `
-            <div style="margin-top:8px; font-size:10px; color:#aaa;">
-              ${new Date(h.timestamp).toLocaleDateString()}
-            </div>
-          ` : ''}
-
-        </div>
-      `)
-      .join('');
-  });
-}
-
 
 function showSaveDialog(selectedText) {
 if (!readmarkEnabled) return;
@@ -797,7 +837,7 @@ if (!readmarkEnabled) return;
 
       chrome.storage.local.set({ readmarks: data }, () => {
         overlay.remove();
-        loadAndDisplayHighlights();
+        refreshHighlightsFromStorage();
 
         const toast = document.createElement("div");
         toast.textContent = "✓ Saved!";
@@ -858,8 +898,6 @@ function setupTabs() {
       render(tab.dataset.tab);
     });
   });
-
-  render("recent");
 }
 
 function renderTagsView(highlights, list) {
@@ -970,19 +1008,86 @@ function setupSearch() {
 }
 
 
-/* selection trigger */
-document.addEventListener('mouseup', () => {
-  if (!readmarkEnabled) return;
+const READMARK_CONTENT_INIT = '__readmarkJotContentScriptInit';
 
-  const text = window.getSelection().toString().trim();
-  if (text.length) showSaveDialog(text);
-});
+function registerReadmarkContentListeners() {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.type === 'TOGGLE_READMARK') {
+      setReadmarkEnabled(!!msg.enabled);
+    }
+  });
 
-chrome.storage.local.get(['readmarkEnabled'], (res) => {
-  readmarkEnabled = res.readmarkEnabled ?? true;
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectWidget);
-  } else {
-    injectWidget();
-  }
-});
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+
+    if (changes.readmarkEnabled) {
+      setReadmarkEnabled(changes.readmarkEnabled.newValue ?? true);
+    }
+
+    const container = document.getElementById('readmark-widget-container');
+    if (!container) {
+      return;
+    }
+
+    if (changes.readmarkWidgetMinimized) {
+      applyMinimizedUi(changes.readmarkWidgetMinimized.newValue === true);
+    }
+
+    if (changes.readmarkWidgetWidth) {
+      const w = changes.readmarkWidgetWidth.newValue;
+      if (typeof w === 'number' && !Number.isNaN(w)) {
+        applyWidgetWidth(w);
+      }
+    }
+
+    if (changes.readmarkWidgetPosition) {
+      const pos = changes.readmarkWidgetPosition.newValue;
+      if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+        requestAnimationFrame(() => applyWidgetPosition(container, pos.left, pos.top));
+      }
+    }
+
+    if (changes.readmarks) {
+      refreshHighlightsFromStorage();
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!readmarkEnabled) return;
+
+    const text = window.getSelection().toString().trim();
+    if (text.length) showSaveDialog(text);
+  });
+}
+
+function bootstrapReadmarkContentScript() {
+  chrome.storage.local.get(
+    [
+      'readmarkEnabled',
+      'readmarks',
+      'readmarkWidgetWidth',
+      'readmarkWidgetPosition',
+      'readmarkWidgetMinimized',
+    ],
+    (res) => {
+      readmarkEnabled = res.readmarkEnabled ?? true;
+      const inject = () => injectWidget(res);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inject, { once: true });
+      } else {
+        inject();
+      }
+    }
+  );
+}
+
+if (globalThis[READMARK_CONTENT_INIT]) {
+  chrome.storage.local.get(['readmarkEnabled'], (r) => {
+    readmarkEnabled = r.readmarkEnabled ?? true;
+    applyWidgetVisibility();
+  });
+} else {
+  globalThis[READMARK_CONTENT_INIT] = true;
+  registerReadmarkContentListeners();
+  bootstrapReadmarkContentScript();
+}
