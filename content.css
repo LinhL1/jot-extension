@@ -1,0 +1,212 @@
+#readmark-widget-container * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* MAIN WIDGET */
+.readmark-widget {
+  width: 480px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  overflow: hidden;
+  transition: width 0.3s ease;
+  color: #111;
+}
+
+/* SIZES */
+.readmark-widget.size-small { width: 320px; }
+.readmark-widget.size-medium { width: 420px; }
+.readmark-widget.size-large { width: 520px; }
+
+/* HEADER */
+.readmark-header {
+  background: #000;
+  color: #fff;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+}
+
+/* BUTTONS */
+.readmark-toggle,
+.readmark-size-btn {
+  background: #111;
+  border: 1px solid #333;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.readmark-size-btn {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.readmark-toggle {
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+}
+
+.readmark-toggle:hover,
+.readmark-size-btn:hover {
+  background: #222;
+}
+
+.readmark-size-btn.active {
+  background: #fff;
+  color: #000;
+}
+
+/* CONTENT */
+.readmark-content {
+  padding: 14px;
+  max-height: 500px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+/* STATS */
+.readmark-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 12px;
+}
+
+.readmark-stat {
+  flex: 1;
+  text-align: center;
+}
+
+.readmark-stat-number {
+  font-size: 18px;
+  font-weight: 700;
+  color: #000;
+}
+
+.readmark-stat-label {
+  font-size: 11px;
+  color: #777;
+}
+
+/* TABS */
+.readmark-tabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 12px;
+}
+
+.readmark-tab {
+  background: none;
+  border: none;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+}
+
+.readmark-tab.active {
+  color: #000;
+  font-weight: 600;
+  border-bottom: 2px solid #000;
+}
+
+/* HIGHLIGHTS */
+.readmark-highlight-item {
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.readmark-highlight-text {
+  font-style: italic;
+  font-size: 13px;
+  color: #111;
+}
+
+.readmark-highlight-note {
+  font-size: 12px;
+  color: #555;
+  margin-top: 6px;
+}
+
+.readmark-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 3px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-right: 4px;
+  margin-top: 6px;
+}
+
+/* ACTIONS */
+.readmark-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.readmark-btn {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+}
+
+.readmark-btn-primary {
+  background: #000;
+  color: #fff;
+  border: none;
+}
+
+.readmark-btn-primary:hover {
+  background: #222;
+}
+
+.readmark-btn-secondary:hover {
+  background: #f5f5f5;
+}
+
+/* MINIMIZED */
+.readmark-minimized .readmark-content,
+.readmark-minimized .readmark-actions {
+  display: none;
+}
+
+/* MODAL */
+.readmark-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000000;
+}
+
+.readmark-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}

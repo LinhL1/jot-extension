@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="popup.css">
+    <title>ReadMark</title>
+   
+</head>
+<body>
+    <div class="popup-container">
+        <div class="popup-title">Jot</div>
+        <div class="popup-subtitle">Quick Highlight & Notes Tool</div>
+        <button id="importBtn" class="popup-btn primary">Import JSON</button>
+        <input type="file" id="importFile" accept=".json" style="display:none;" />
+
+        <div class="popup-section">
+            <div class="popup-section-title">Your Progress</div>
+            <div class="popup-stats">
+                <div class="popup-stat">
+                    <span class="popup-stat-number" id="stat-highlights">0</span>
+                    <span class="popup-stat-label">Highlights</span>
+                </div>
+                <div class="popup-stat">
+                    <span class="popup-stat-number" id="stat-tags">0</span>
+                    <span class="popup-stat-label">Tags</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="popup-section">
+            <div class="popup-section-title">💡 How to Use</div>
+            <div class="popup-instructions">
+                <ul>
+                    <li>Select text on any page</li>
+                    <li>Add notes & tags in the popup</li>
+                    <li>View all highlights in the widget</li>
+                    <li>Search & organize your thoughts</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="popup-actions">
+            <button class="popup-btn primary" id="open-all">View All Highlights</button>
+            <button class="popup-btn" id="export-btn">Export as JSON</button>
+            <button class="popup-btn" id="toggle-btn">Disable Highlighting</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
