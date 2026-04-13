@@ -8,7 +8,7 @@
 /* MAIN WIDGET */
 .readmark-widget {
   width: 480px;
-  background: #fff;
+  background: #f6f4f0;
   border: 1px solid #e5e5e5;
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
@@ -25,7 +25,7 @@
 /* HEADER */
 .readmark-header {
   background: #000;
-  color: #fff;
+  color: #f6f4f0;
   padding: 14px;
   display: flex;
   justify-content: space-between;
@@ -38,7 +38,7 @@
 .readmark-size-btn {
   background: #111;
   border: 1px solid #333;
-  color: white;
+  color: f6f4f0;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -61,7 +61,7 @@
 }
 
 .readmark-size-btn.active {
-  background: #fff;
+  background: #f6f4f0;
   color: #000;
 }
 
@@ -70,7 +70,7 @@
   padding: 14px;
   max-height: 500px;
   overflow-y: auto;
-  background: #fff;
+  background: #f6f4f0;
 }
 
 /* STATS */
@@ -167,13 +167,13 @@
   font-size: 12px;
   border-radius: 8px;
   border: 1px solid #ddd;
-  background: #fff;
+  background: #f6f4f0;
   cursor: pointer;
 }
 
 .readmark-btn-primary {
   background: #000;
-  color: #fff;
+  color: #f6f4f0;
   border: none;
 }
 
@@ -182,7 +182,7 @@
 }
 
 .readmark-btn-secondary:hover {
-  background: #f5f5f5;
+  background: #f6f4f0;
 }
 
 /* MINIMIZED */
