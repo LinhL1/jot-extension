@@ -200,313 +200,258 @@ function injectWidget(initialStorage) {
   letter-spacing: 0.5px;
 }
 
-    .readmark-widget {
-      --readmark-panel-width: 420px;
-      position: relative;
-      width: var(--readmark-panel-width);
-      max-width: min(640px, calc(100vw - 40px));
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.12);
-      overflow: hidden;
-      border: 1px solid #eaeaea;
-      transition:
-        width 0.4s cubic-bezier(0.34, 1.15, 0.64, 1),
-        height 0.4s cubic-bezier(0.34, 1.15, 0.64, 1),
-        border-radius 0.4s cubic-bezier(0.34, 1.15, 0.64, 1),
-        box-shadow 0.35s ease,
-        min-height 0.4s cubic-bezier(0.34, 1.15, 0.64, 1);
-      min-height: 0;
-    }
+/* ===============================
+   WIDGET SHELL
+=============================== */
 
-    .readmark-widget.readmark-minimized {
-      width: 56px;
-      height: 56px;
-      min-width: 56px;
-      min-height: 56px;
-      max-width: 56px;
-      border-radius: 50%;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-      border-color: rgba(0,0,0,0.06);
-    }
+.readmark-widget {
+  --readmark-panel-width: 420px;
+  width: var(--readmark-panel-width);
+  max-width: min(640px, calc(100vw - 40px));
+  background: #f6f4f0;
+  border-radius: 14px;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
 
-    .readmark-panel {
-      transition:
-        opacity 0.32s ease,
-        transform 0.42s cubic-bezier(0.34, 1.15, 0.64, 1),
-        max-height 0.42s cubic-bezier(0.34, 1.15, 0.64, 1);
-      transform-origin: center bottom;
-      max-height: min(90vh, 680px);
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
+.readmark-widget.readmark-minimized {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+}
 
-    .readmark-widget.readmark-minimized .readmark-panel {
-      opacity: 0;
-      transform: scale(0.95) translateY(8px);
-      max-height: 0;
-      overflow: hidden;
-      pointer-events: none;
-    }
+/* ===============================
+   PANEL
+=============================== */
 
-    .readmark-fab {
-      position: absolute;
-      inset: 0;
-      margin: auto;
-      width: 44px;
-      height: 44px;
-      border: none;
-      border-radius: 50%;
-      background: #111;
-      color: #f6f4f0;
-      cursor: grab;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.85);
-      transition:
-        opacity 0.35s ease 0.08s,
-        transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1) 0.06s,
-        background 0.2s ease;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
-    }
+.readmark-panel {
+  max-height: min(90vh, 680px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
 
-    .readmark-fab:hover {
-      background: #222;
-    }
+.readmark-widget.readmark-minimized .readmark-panel {
+  opacity: 0;
+  pointer-events: none;
+}
 
-    .readmark-fab:active {
-      cursor: grabbing;
-    }
+/* ===============================
+   FLOATING BUTTON
+=============================== */
 
-    .readmark-widget.readmark-minimized .readmark-fab {
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1);
-    }
+.readmark-fab {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #111;
+  color: #f6f4f0;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
 
-    .readmark-fab svg {
-      display: block;
-    }
+.readmark-widget.readmark-minimized .readmark-fab {
+  opacity: 1;
+  pointer-events: auto;
+}
 
-    .readmark-size-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
-      background: #f7f7f7;
-      border-bottom: 1px solid #f6f4f0;
-    }
+/* ===============================
+   HEADER
+=============================== */
 
-    .readmark-size-row label {
-      font-size: 11px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      white-space: nowrap;
-    }
+.readmark-header {
+  background: #f6f4f0;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    .readmark-width-slider {
-      flex: 1;
-      min-width: 0;
-      height: 4px;
-      accent-color: #111;
-      cursor: pointer;
-    }
+.readmark-title {
+  color: #111;
+  font-weight: 600;
+  font-size: 14px;
+}
 
-    .readmark-header {
-      background: #111;
-      padding: 14px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: grab;
-      user-select: none;
-    }
+.readmark-toggle {
+  background: #f6f4f0;
+  border: 1px solid #ddd;
+  color: #111;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
 
-    .readmark-widget.readmark-dragging .readmark-header {
-      cursor: grabbing;
-    }
+/* ===============================
+   CONTENT AREA
+=============================== */
 
-    .readmark-widget.readmark-dragging .readmark-fab {
-      cursor: grabbing;
-    }
+.readmark-content {
+  padding: 16px;
+  background: #f6f4f0;
+  max-height: 500px;
+  overflow-y: auto;
+}
 
-    .readmark-title {
-      color: #f6f4f0;
-      font-weight: 600;
-      font-size: 14px;
-    }
+.readmark-content::-webkit-scrollbar {
+  width: 6px;
+}
 
-    .readmark-toggle {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #f6f4f0;
-      min-width: 28px;
-      height: 28px;
-      padding: 0 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+.readmark-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
 
-    .readmark-toggle:hover {
-      background: rgba(255,255,255,0.14);
-    }
+/* ===============================
+   STATS
+=============================== */
 
-    .readmark-content {
-      padding: 14px;
-      max-height: 500px;
-      overflow-y: auto;
-    }
+.readmark-stats {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #e5e5e5;
+}
 
-    .readmark-content::-webkit-scrollbar {
-      width: 6px;
-    }
+.readmark-stat-number {
+  font-size: 18px;
+  font-weight: 700;
+}
 
-    .readmark-content::-webkit-scrollbar-thumb {
-      background: #ccc;
-      border-radius: 3px;
-    }
+.readmark-stat-label {
+  font-size: 11px;
+  color: #777;
+  text-transform: uppercase;
+}
 
-    .readmark-stats {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 14px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid #eee;
-    }
+/* ===============================
+   TABS
+=============================== */
 
-    .readmark-stat-number {
-      font-size: 18px;
-      font-weight: 700;
-      color: #111;
-    }
+.readmark-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 14px;
+}
 
-    .readmark-stat-label {
-      font-size: 11px;
-      color: #888;
-      text-transform: uppercase;
-    }
+.readmark-tab {
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+}
 
-    .readmark-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #eee;
-    }
+.readmark-tab.active {
+  color: #111;
+  border-bottom: 2px solid #111;
+}
 
-    .readmark-tab {
-      background: none;
-      border: none;
-      padding: 8px 10px;
-      font-size: 13px;
-      color: #888;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-    }
+/* ===============================
+   HIGHLIGHT CARDS
+=============================== */
 
-    .readmark-tab.active {
-      color: #111;
-      border-bottom-color: #111;
-    }
+.readmark-highlight-item {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-    .readmark-highlight-item {
-      padding: 12px;
-      margin-bottom: 10px;
-      background: #fafafa;
-      border-left: 2px solid #111;
-      border-radius: 8px;
-    }
+.readmark-highlight-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111;
+}
 
-    .readmark-highlight-text {
-      color: #111;
-      font-style: italic;
-    }
+.readmark-tag {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  color: #333;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
 
-    .readmark-tag {
-      background: #111;
-      color: #f6f4f0;
-      font-size: 10px;
-      padding: 3px 6px;
-      border-radius: 4px;
-    }
+/* ===============================
+   BUTTONS
+=============================== */
 
-    .readmark-btn-primary {
-      background: #111;
-      color: #f6f4f0;
-    }
+.readmark-btn-primary {
+  background: #111;
+  color: #f6f4f0;
+}
 
-    .readmark-btn-secondary {
-      background: #f2f2f2;
-      color: #111;
-    }
+.readmark-btn-secondary {
+  background: #f6f4f0;
+  border: 1px solid #ccc;
+}
 
-    .readmark-modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      z-index: 1000000;
-    }
+/* ===============================
+   MODAL
+=============================== */
 
-    .readmark-modal {
-      background: #f6f4f0;
-      border-radius: 12px;
-      padding: 18px;
-      border: 1px solid #eee;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-    }
+.readmark-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+}
 
-    .readmark-modal-title {
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: #111;
-    }
+.readmark-modal {
+  background: #f6f4f0;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 18px;
+}
 
-    .readmark-modal-text {
-      font-size: 13px;
-      padding: 10px;
-      background: #fafafa;
-      border-left: 2px solid #111;
-      margin-bottom: 12px;
-    }
+.readmark-modal-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
 
-    .readmark-form-input,
-    .readmark-form-textarea {
-      width: 100%;
-      border: 1px solid #ddd;
-      padding: 8px;
-      border-radius: 8px;
-      font-family: inherit;
-    }
+.readmark-modal-text {
+  font-size: 13px;
+  background: #fff;
+  border-left: 3px solid #111;
+  padding: 10px;
+  margin-bottom: 12px;
+}
 
-    .readmark-form-input:focus,
-    .readmark-form-textarea:focus {
-      outline: none;
-      border-color: #111;
-    }
+.readmark-form-input,
+.readmark-form-textarea {
+  width: 100%;
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 8px;
+}
 
-    .readmark-modal-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
+.readmark-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
 
-    .readmark-modal-actions button {
-      flex: 1;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-weight: 600;
-    }
+.readmark-modal-actions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+  
   `;
   document.head.appendChild(style);
 

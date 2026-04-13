@@ -30,6 +30,6 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "Jot",
-    "default_icon": "logo.png"
+    "default_icon": "logo1.png"
   }
 }
