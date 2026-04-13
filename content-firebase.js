@@ -61,7 +61,6 @@ function injectWidget() {
     bottom: 20px;
     right: 20px;
     z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   `;
 
   // Inject styles
@@ -79,7 +78,6 @@ function injectWidget() {
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       transition: width 0.3s ease;
     }
 
@@ -178,10 +176,10 @@ function injectWidget() {
     }
 
     .readmark-content {
-      padding: 16px;
+      padding: 14px;
+      background: #f6f4f0;
       max-height: 500px;
       overflow-y: auto;
-      background: white;
     }
 
     .readmark-content::-webkit-scrollbar {
@@ -255,21 +253,26 @@ function injectWidget() {
     }
 
     .readmark-highlight-item {
-      padding: 12px;
-      margin-bottom: 12px;
-      background: #f9f9f9;
-      border-left: 3px solid #667eea;
-      border-radius: 6px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
 
-    .readmark-highlight-text {
-      color: #333;
-      margin-bottom: 8px;
-      font-style: italic;
-      word-break: break-word;
-    }
+.readmark-highlight-item:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+
+.readmark-highlight-text {
+  border-left: 3px solid #111;
+  padding-left: 10px;
+}
 
     .readmark-highlight-note {
       color: #666;
@@ -390,7 +393,6 @@ function injectWidget() {
       align-items: center;
       justify-content: center;
       z-index: 1000000;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .readmark-modal {
@@ -403,10 +405,12 @@ function injectWidget() {
     }
 
     .readmark-modal-title {
+      font-family: Arial, Helvetica, sans-serif;
       font-size: 20px;
       font-weight: 700;
       margin-bottom: 16px;
       color: #333;
+     
     }
 
     .readmark-modal-text {
@@ -440,7 +444,7 @@ function injectWidget() {
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       font-size: 13px;
-      font-family: inherit;
+    
     }
 
     .readmark-form-textarea {

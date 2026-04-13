@@ -25,8 +25,8 @@ body {
 }
 
 .popup-logo {
-    width: 56px;
-    height: 56px;
+    width: 90px;   
+    height: 90px;
     border-radius: 6px;
     object-fit: cover;
     flex-shrink: 0;
@@ -115,15 +115,11 @@ body {
 }
 
 .popup-btn:hover{
-  background: #a44807;
-  color: #f6f4f0;
+  background: #f6f4f0;
+  color: #1d1911;
   border-color: #ccc;
 }
-.toggle-btn:hover {
-  background: #a44807;
-  color: #f6f4f0;
-  border-color: #ccc;
-}
+
 
 .popup-btn.primary {
   background: #111;
@@ -132,7 +128,7 @@ body {
 }
 
 .popup-btn.primary:hover {
-  background: #000;
+  background: #2b2a2a;
 }
 
 /* Instructions */
