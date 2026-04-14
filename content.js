@@ -253,7 +253,7 @@ function injectWidget(initialStorage) {
     }
 
     .readmark-fab:hover {
-      background: #333;
+      background: #d8d486;
     }
 
     .readmark-widget.readmark-minimized .readmark-fab {
@@ -702,10 +702,6 @@ function injectWidget(initialStorage) {
       </div>
 
       <button type="button" class="readmark-fab" data-action="expand" title="Open Jot" aria-label="Open Jot">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
       </button>
     </div>
   `;

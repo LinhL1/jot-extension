@@ -1,5 +1,4 @@
 {
-  
   "manifest_version": 3,
   "name": "Jot",
   "version": "1.0.0",
@@ -10,6 +9,7 @@
     "scripting"
   ],
   "host_permissions": ["<all_urls>"],
+
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
@@ -19,14 +19,24 @@
       "run_at": "document_idle"
     }
   ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["logo1.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
   "icons": {
     "16": "logo.png",
     "48": "logo.png",
     "128": "logo.png"
   },
+
   "background": {
     "service_worker": "background.js"
   },
+
   "action": {
     "default_popup": "popup.html",
     "default_title": "Jot",
