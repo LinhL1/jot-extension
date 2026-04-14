@@ -117,11 +117,7 @@ function hydrateHighlightsList(highlights) {
   updateHighlightStats(highlights);
 
   if (!highlights.length) {
-    list.innerHTML = `
-      <div class="readmark-highlight-item">
-        <div class="readmark-highlight-text">No highlights yet</div>
-      </div>
-    `;
+    list.innerHTML = `<div class="readmark-no-highlights">No highlights yet</div>`;
     return;
   }
 
@@ -129,37 +125,32 @@ function hydrateHighlightsList(highlights) {
     .slice()
     .reverse()
     .map(
-      (h) => `
-        <div class="readmark-highlight-item">
-
-          <div class="readmark-highlight-text">
-            "${h.text}"
-          </div>
-
-          ${h.note ? `
-            <div style="margin-top:6px; font-size:12px; color:#444;">
-              ${h.note}
-            </div>
-          ` : ''}
-
+      (h, idx) => `
+        <div class="readmark-highlight-item" data-index="${highlights.length - 1 - idx}">
+          <button class="readmark-highlight-delete" data-index="${highlights.length - 1 - idx}" title="Delete">×</button>
+          <div class="readmark-highlight-text">"${h.text}"</div>
+          ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
           ${h.tags && h.tags.length ? `
-            <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
-              ${h.tags.map((t) => `
-                <span class="readmark-tag">${t}</span>
-              `).join('')}
+            <div class="readmark-highlight-tags">
+              ${h.tags.map((t) => `<span class="readmark-tag">#${t}</span>`).join('')}
             </div>
           ` : ''}
-
           ${h.timestamp ? `
-            <div style="margin-top:8px; font-size:10px; color:#aaa;">
-              ${new Date(h.timestamp).toLocaleDateString()}
-            </div>
+            <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
           ` : ''}
-
         </div>
       `
     )
     .join('');
+
+  // Attach delete handlers
+  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      deleteHighlight(idx);
+    };
+  });
 }
 
 // Inject the floating widget into the page
@@ -187,317 +178,529 @@ function injectWidget(initialStorage) {
       margin: 0;
       padding: 0;
     }
-      .readmark-form-group {
-  margin-top: 10px;
-}
 
-.readmark-form-label {
-  display: block;
-  font-size: 11px;
-  color: #888;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+    .readmark-form-group {
+      margin-top: 10px;
+    }
 
-/* ===============================
-   WIDGET SHELL
-=============================== */
+    .readmark-form-label {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-.readmark-widget {
-  --readmark-panel-width: 420px;
-  width: var(--readmark-panel-width);
-  max-width: min(640px, calc(100vw - 40px));
-  background: #f6f4f0;
-  border-radius: 14px;
-  border: 1px solid #e5e5e5;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
+    /* ===============================
+       WIDGET SHELL
+    =============================== */
 
-.readmark-widget.readmark-minimized {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-}
+    .readmark-widget {
+      --readmark-panel-width: 480px;
+      width: var(--readmark-panel-width);
+      max-width: min(720px, calc(100vw - 40px));
+      background: #f5f3f0;
+      border-radius: 0;
+      border: 1px solid #ddd;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+      overflow: hidden;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
 
-/* ===============================
-   PANEL
-=============================== */
+    .readmark-widget.readmark-minimized {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+    }
 
-.readmark-panel {
-  max-height: min(90vh, 680px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
+    /* ===============================
+       PANEL
+    =============================== */
 
-.readmark-widget.readmark-minimized .readmark-panel {
-  opacity: 0;
-  pointer-events: none;
-}
+    .readmark-panel {
+      display: flex;
+      flex-direction: column;
+      max-height: min(90vh, 700px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
 
-/* ===============================
-   FLOATING BUTTON
-=============================== */
+    .readmark-widget.readmark-minimized .readmark-panel {
+      opacity: 0;
+      pointer-events: none;
+    }
 
-.readmark-fab {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: none;
-  background: #111;
-  color: #f6f4f0;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.2s ease;
-}
+    /* ===============================
+       FLOATING BUTTON
+    =============================== */
 
-.readmark-widget.readmark-minimized .readmark-fab {
-  opacity: 1;
-  pointer-events: auto;
-}
+    .readmark-fab {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: #111;
+      color: #f6f4f0;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
 
-/* ===============================
-   HEADER
-=============================== */
+    .readmark-fab:hover {
+      background: #333;
+    }
 
-.readmark-header {
-  background: #f6f4f0;
-  border-bottom: 1px solid #e5e5e5;
-  padding: 14px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    .readmark-widget.readmark-minimized .readmark-fab {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
-.readmark-title {
-  color: #111;
-  font-weight: 600;
-  font-size: 14px;
-}
+    /* ===============================
+       HEADER
+    =============================== */
 
-.readmark-toggle {
-  background: #f6f4f0;
-  border: 1px solid #ddd;
-  color: #111;
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
-}
+    .readmark-header {
+      background: #2a2a2a;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      border-bottom: 1px solid #1a1a1a;
+    }
 
-/* ===============================
-   CONTENT AREA
-=============================== */
+    .readmark-title {
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+    }
 
-.readmark-content {
-  padding: 16px;
-  background: #f6f4f0;
-  max-height: 500px;
-  overflow-y: auto;
-}
+    .readmark-toggle {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
 
-.readmark-content::-webkit-scrollbar {
-  width: 6px;
-}
+    .readmark-toggle:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.5);
+    }
 
-.readmark-content::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
-}
+    /* ===============================
+       TAGLINE
+    =============================== */
 
-/* ===============================
-   STATS
-=============================== */
+    .readmark-tagline {
+      color: #666;
+      font-size: 13px;
+      font-style: italic;
+      padding: 12px 20px 0;
+      margin-bottom: 12px;
+    }
 
-.readmark-stats {
-  display: flex;
-  gap: 14px;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid #e5e5e5;
-}
+    /* ===============================
+       CONTENT AREA
+    =============================== */
 
-.readmark-stat-number {
-  font-size: 18px;
-  font-weight: 700;
-}
+    .readmark-content {
+      padding: 16px 24px 24px 24px;
+      background: #f5f3f0;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
 
-.readmark-stat-label {
-  font-size: 11px;
-  color: #777;
-  text-transform: uppercase;
-}
+    .readmark-content::-webkit-scrollbar {
+      width: 6px;
+    }
 
-/* ===============================
-   TABS
-=============================== */
+    .readmark-content::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 3px;
+    }
 
-.readmark-tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid #e5e5e5;
-  margin-bottom: 14px;
-}
+    .readmark-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-.readmark-tab {
-  background: none;
-  border: none;
-  padding: 8px 10px;
-  font-size: 13px;
-  color: #888;
-  cursor: pointer;
-}
+    /* ===============================
+       SEARCH
+    =============================== */
 
-.readmark-tab.active {
-  color: #111;
-  border-bottom: 2px solid #111;
-}
+    .readmark-search-container {
+      margin-bottom: 16px;
+      position: relative;
+      margin-top: 20px;
+    }
 
-/* ===============================
-   HIGHLIGHT CARDS
-=============================== */
+    .readmark-search-input {
+      width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+      padding: 14px 14px 14px 14px;
+      border: 1px solid #ddd;
+      border-radius: 0;
+      font-size: 13px;
+      outline: none;
+      background: #f5f3f0;
+      transition: all 0.2s ease;
+    }
 
-.readmark-highlight-item {
-  background: #fff;
-  border: 1px solid #e5e5e5;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+    .readmark-search-input:focus {
+      border-color: #999;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+    }
 
-.readmark-highlight-text {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #111;
-}
+    .readmark-search-input::placeholder {
+      color: #999;
+    }
 
-.readmark-tag {
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  color: #333;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
-}
+    .readmark-search-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #999;
+      pointer-events: none;
+    }
 
-/* ===============================
-   BUTTONS
-=============================== */
+    /* ===============================
+       TABS
+    =============================== */
 
-.readmark-btn-primary {
-  background: #111;
-  color: #f6f4f0;
-}
+    .readmark-tabs-container {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
 
-.readmark-btn-secondary {
-  background: #f6f4f0;
-  border: 1px solid #ccc;
-}
+    .readmark-tabs {
+      display: flex;
+      gap: 16px;
+    }
 
-/* ===============================
-   MODAL
-=============================== */
+    .readmark-tab {
+      background: none;
+      border: none;
+      padding: 8px 0;
+      font-size: 13px;
+      color: #888;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
 
-.readmark-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.35);
-}
+    .readmark-tab:hover {
+      color: #555;
+    }
 
-.readmark-modal {
-  background: #f6f4f0;
-  border: 1px solid #e5e5e5;
-  border-radius: 12px;
-  padding: 18px;
-}
+    .readmark-tab.active {
+      color: #111;
+      border-bottom: 2px solid #111;
+    }
 
-.readmark-modal-title {
-  font-weight: 600;
-  margin-bottom: 10px;
-}
+    .readmark-tabs-divider {
+      margin-left: auto;
+      width: 1px;
+      height: 16px;
+      background: #ddd;
+    }
 
-.readmark-modal-text {
-  font-size: 13px;
-  background: #fff;
-  border-left: 3px solid #111;
-  padding: 10px;
-  margin-bottom: 12px;
-}
+    .readmark-stats {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
 
-.readmark-form-input,
-.readmark-form-textarea {
-  width: 100%;
-  border: 1px solid #ddd;
-  padding: 8px;
-  border-radius: 8px;
-}
+    .readmark-stat {
+      text-align: right;
+    }
 
-.readmark-modal-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
+    .readmark-stat-number {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111;
+    }
 
-.readmark-modal-actions button {
-  flex: 1;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-}
-  
+    .readmark-stat-label {
+      font-size: 10px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* ===============================
+       HIGHLIGHTS GRID
+    =============================== */
+
+    .readmark-highlights-grid {
+      padding: 12px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .readmark-tags-view .readmark-highlights-grid {
+      padding: 0 4px;
+    }
+
+    .readmark-highlight-item {
+      background: #f8f8f8;
+      border: 1px solid #222220;
+      border-radius: 0;
+      padding: 40px 16px 16px 16px;
+      
+      gap: 8px;
+      min-height: 120px;
+      transition: all 0.2s ease;
+    }
+
+    .readmark-highlight-item:hover {
+      border-color: #ccc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .readmark-highlight-text {
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #111;
+      
+      word-break: break-word;
+    }
+
+    .readmark-highlight-note {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #666;
+      background: #f9f9f9;
+      padding: 6px 8px;
+      border-radius: 0;
+      border-left: 2px solid #ddd;
+    }
+
+    .readmark-highlight-tags {
+      margin-top: auto;
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .readmark-tag {
+      background: #f0f0f0;
+      border: 1px solid #e0e0e0;
+      color: #555;
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 0;
+    }
+
+    .readmark-highlight-date {
+      font-size: 9px;
+      color: #aaa;
+    }
+
+    .readmark-highlight-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 20px;
+      height: 20px;
+      background: transparent;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .readmark-highlight-delete:hover {
+      color: #333;
+    }
+
+    .readmark-highlight-item:hover .readmark-highlight-delete {
+      opacity: 1;
+    }
+
+    .readmark-highlight-item {
+      position: relative;
+    }
+
+    .readmark-no-highlights {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .readmark-tags-view {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .readmark-tags-back {
+      padding: 0 4px;
+    }
+
+    .readmark-back-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 8px 0;
+      text-decoration: underline;
+    }
+
+    .readmark-back-btn:hover {
+      color: #111;
+    }
+
+    .readmark-tag-item {
+      cursor: pointer;
+      min-height: 80px;
+    }
+
+    .readmark-tag-item:hover {
+      border-color: #333;
+    }
+
+    /* ===============================
+       BUTTONS
+    =============================== */
+
+    .readmark-btn-primary {
+      background: #111;
+      color: #f6f4f0;
+    }
+
+    .readmark-btn-secondary {
+      background: #f6f4f0;
+      border: 1px solid #ccc;
+    }
+
+    /* ===============================
+       MODAL
+    =============================== */
+
+    .readmark-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 1000000;
+    }
+
+    .readmark-modal {
+      background: #f5f3f0;
+      border: 1px solid #e5e5e5;
+      border-radius: 0;
+      padding: 18px;
+    }
+
+    .readmark-modal-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .readmark-modal-text {
+      font-size: 13px;
+      background: #fff;
+      border-left: 3px solid #111;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+
+    .readmark-form-input,
+    .readmark-form-textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    .readmark-modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .readmark-modal-actions button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
   `;
   document.head.appendChild(style);
 
   container.innerHTML = `
     <div class="readmark-widget">
       <div class="readmark-panel">
-      <div class="readmark-header">
-        <div class="readmark-title">Jot</div>
-        <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
-      </div>
-     
-
-      <div class="readmark-content">
-      <div style="margin-bottom:10px;">
-        <input
-            id="readmark-search"
-            placeholder="Search highlights..."
-            style="
-            width:100%;
-            padding:8px 10px;
-            border:1px solid #ddd;
-            border-radius:8px;
-            font-size:13px;
-            outline:none;
-            "
-        />
+        <div class="readmark-header">
+          <div class="readmark-title">Jot.</div>
+          <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
         </div>
-        <div class="readmark-stats">
-          <div>
-            <div class="readmark-stat-number" id="readmark-count">0</div>
-            <div class="readmark-stat-label">Highlights</div>
+
+        <div class="readmark-content">
+          <div class="readmark-tagline">Your second brain.</div>
+
+          <div class="readmark-search-container">
+            <input
+              id="readmark-search"
+              class="readmark-search-input"
+              placeholder="Search highlights..."
+            />
+            <svg class="readmark-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
           </div>
-          <div>
-            <div class="readmark-stat-number" id="readmark-tags-count">0</div>
-            <div class="readmark-stat-label">Tags</div>
+
+          <div class="readmark-tabs-container">
+            <div class="readmark-tabs">
+              <button class="readmark-tab active" data-tab="recent">Notes</button>
+              <button class="readmark-tab" data-tab="tags">Tags</button>
+            </div>
+            <div class="readmark-tabs-divider"></div>
+            <div class="readmark-stats">
+              <div class="readmark-stat">
+                <div class="readmark-stat-number" id="readmark-count">0</div>
+                <div class="readmark-stat-label">Notes</div>
+              </div>
+              <div class="readmark-stat">
+                <div class="readmark-stat-number" id="readmark-tags-count">0</div>
+                <div class="readmark-stat-label">Tags</div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div class="readmark-tabs">
-          <button class="readmark-tab active" data-tab="recent">Recent</button>
-          <button class="readmark-tab" data-tab="tags">Tags</button>
+          <div id="readmark-highlights-list" class="readmark-highlights-grid"></div>
         </div>
+      </div>
 
-        <div id="readmark-highlights-list"></div>
-      </div>
-      </div>
       <button type="button" class="readmark-fab" data-action="expand" title="Open Jot" aria-label="Open Jot">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -516,9 +719,9 @@ function injectWidget(initialStorage) {
   setupSearch();
 }
 
-const DEFAULT_WIDGET_WIDTH = 420;
-const WIDGET_WIDTH_MIN = 280;
-const WIDGET_WIDTH_MAX = 640;
+const DEFAULT_WIDGET_WIDTH = 480;
+const WIDGET_WIDTH_MIN = 320;
+const WIDGET_WIDTH_MAX = 720;
 
 function applyWidgetWidth(px) {
   const root = document.querySelector('#readmark-widget-container .readmark-widget');
@@ -870,6 +1073,7 @@ function setupTabs() {
   if (!tabs.length || !list) return;
 
   const render = (type) => {
+    window.__readmarkSelectedTag = null;
     safeStorageGet(["readmarks"], (res) => {
       const highlights = res.readmarks || [];
 
@@ -891,7 +1095,7 @@ function setupTabs() {
   });
 }
 
-function renderTagsView(highlights, list) {
+function renderTagsView(highlights, list, selectedTag = null) {
   const tagMap = {};
 
   highlights.forEach(h => {
@@ -902,72 +1106,129 @@ function renderTagsView(highlights, list) {
 
   const tags = Object.entries(tagMap);
 
-  if (!tags.length) {
+  // If a tag is selected, show highlights for that tag
+  if (selectedTag) {
+    const filtered = highlights.filter(h => (h.tags || []).includes(selectedTag));
     list.innerHTML = `
-      <div class="readmark-highlight-item">
-        <div class="readmark-highlight-text">No tags yet</div>
+      <div class="readmark-tags-view">
+        <div class="readmark-tags-back">
+          <button class="readmark-back-btn" id="readmark-back-btn">← Back to tags</button>
+        </div>
+        <div class="readmark-highlights-grid">
+          ${filtered.map((h, idx) => {
+            const origIdx = highlights.indexOf(h);
+            return `
+              <div class="readmark-highlight-item" data-index="${origIdx}">
+                <button class="readmark-highlight-delete" data-index="${origIdx}" title="Delete">×</button>
+                <div class="readmark-highlight-text">"${h.text}"</div>
+                ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
+                ${h.tags && h.tags.length ? `
+                  <div class="readmark-highlight-tags">
+                    ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
+                  </div>
+                ` : ''}
+                ${h.timestamp ? `
+                  <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
       </div>
     `;
+
+    // Attach back button handler
+    const backBtn = document.getElementById('readmark-back-btn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        renderTagsView(highlights, list, null);
+      };
+    }
+
+    // Attach delete handlers
+    list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index, 10);
+        deleteHighlight(idx);
+      };
+    });
+    return;
+  }
+
+  if (!tags.length) {
+    list.innerHTML = `<div class="readmark-no-highlights">No tags yet</div>`;
     return;
   }
 
   list.innerHTML = tags.map(([tag, count]) => `
-    <div class="readmark-highlight-item">
-      <div class="readmark-highlight-text">
-        #${tag}
-      </div>
-      <div style="font-size:12px; color:#666; margin-top:4px;">
-        ${count} highlight(s)
-      </div>
+    <div class="readmark-highlight-item readmark-tag-item" data-tag="${tag}">
+      <div class="readmark-highlight-text">#${tag}</div>
+      <div style="font-size:12px; color:#666; margin-top:4px;">${count} highlight(s)</div>
     </div>
   `).join('');
+
+  // Attach click handlers for tag items
+  list.querySelectorAll('.readmark-tag-item').forEach(item => {
+    item.onclick = () => {
+      const tag = item.dataset.tag;
+      window.__readmarkSelectedTag = tag;
+      renderTagsView(highlights, list, tag);
+    };
+  });
+
+  window.__readmarkShowTags = () => {
+    window.__readmarkSelectedTag = null;
+    renderTagsView(highlights, list, null);
+  };
+}
+
+function deleteHighlight(index) {
+  safeStorageGet(['readmarks'], (res) => {
+    const highlights = res.readmarks || [];
+    highlights.splice(index, 1);
+    safeStorageSet({ readmarks: highlights }, () => {
+      refreshHighlightsFromStorage();
+    });
+  });
 }
 
 function renderHighlights(highlights, list) {
   document.getElementById('readmark-count').textContent = highlights.length;
 
   if (!highlights.length) {
-    list.innerHTML = `
-      <div class="readmark-highlight-item">
-        <div class="readmark-highlight-text">No highlights yet</div>
-      </div>
-    `;
+    list.innerHTML = `<div class="readmark-no-highlights">No highlights yet</div>`;
     return;
   }
 
   list.innerHTML = highlights
     .slice()
     .reverse()
-    .map(h => `
-      <div class="readmark-highlight-item">
-
-        <div class="readmark-highlight-text">
-          "${h.text}"
-        </div>
-
-        ${h.note ? `
-          <div style="margin-top:6px; font-size:12px; color:#444;">
-            ${h.note}
-          </div>
-        ` : ''}
-
+    .map((h, idx) => `
+      <div class="readmark-highlight-item" data-index="${highlights.length - 1 - idx}">
+        <button class="readmark-highlight-delete" data-index="${highlights.length - 1 - idx}" title="Delete">×</button>
+        <div class="readmark-highlight-text">"${h.text}"</div>
+        ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
         ${h.tags && h.tags.length ? `
-          <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
-            ${h.tags.map(t => `
-              <span class="readmark-tag">${t}</span>
-            `).join('')}
+          <div class="readmark-highlight-tags">
+            ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
           </div>
         ` : ''}
-
         ${h.timestamp ? `
-          <div style="margin-top:8px; font-size:10px; color:#aaa;">
-            ${new Date(h.timestamp).toLocaleDateString()}
-          </div>
+          <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
         ` : ''}
-
       </div>
     `)
     .join('');
+
+  // Attach delete handlers
+  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      deleteHighlight(idx);
+    };
+  });
 }
 
 function setupSearch() {
@@ -1140,13 +1401,11 @@ function bootstrapReadmarkContentScript() {
   );
 }
 
-if (globalThis[READMARK_CONTENT_INIT]) {
-  safeStorageGet(['readmarkEnabled'], (r) => {
-    readmarkEnabled = r.readmarkEnabled ?? true;
-    if (window.self === window.top) applyWidgetVisibility();
-  });
+if (window.__READMARK_LOADED__) {
+  console.log("⚠️ Readmark already initialized");
 } else {
-  globalThis[READMARK_CONTENT_INIT] = true;
+  window.__READMARK_LOADED__ = true;
+
   registerReadmarkContentListeners(window.self === window.top);
   bootstrapReadmarkContentScript();
 }
