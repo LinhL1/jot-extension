@@ -125,8 +125,9 @@ function hydrateHighlightsList(highlights) {
     .slice()
     .reverse()
     .map(
-      (h) => `
-        <div class="readmark-highlight-item">
+      (h, idx) => `
+        <div class="readmark-highlight-item" data-index="${highlights.length - 1 - idx}">
+          <button class="readmark-highlight-delete" data-index="${highlights.length - 1 - idx}" title="Delete">×</button>
           <div class="readmark-highlight-text">"${h.text}"</div>
           ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
           ${h.tags && h.tags.length ? `
@@ -141,6 +142,15 @@ function hydrateHighlightsList(highlights) {
       `
     )
     .join('');
+
+  // Attach delete handlers
+  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      deleteHighlight(idx);
+    };
+  });
 }
 
 // Inject the floating widget into the page
@@ -191,7 +201,7 @@ function injectWidget(initialStorage) {
       width: var(--readmark-panel-width);
       max-width: min(720px, calc(100vw - 40px));
       background: #f5f3f0;
-      border-radius: 12px;
+      border-radius: 0;
       border: 1px solid #ddd;
       box-shadow: 0 12px 32px rgba(0,0,0,0.12);
       overflow: hidden;
@@ -305,7 +315,7 @@ function injectWidget(initialStorage) {
     =============================== */
 
     .readmark-content {
-      padding: 0 20px 20px 20px;
+      padding: 16px 24px 24px 24px;
       background: #f5f3f0;
       flex: 1;
       overflow-y: auto;
@@ -333,17 +343,20 @@ function injectWidget(initialStorage) {
     .readmark-search-container {
       margin-bottom: 16px;
       position: relative;
-      margin-top: 16px;
+      margin-top: 20px;
     }
 
     .readmark-search-input {
-      width: 100%;
-      padding: 10px 14px 10px 14px;
+      width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+      padding: 14px 14px 14px 14px;
       border: 1px solid #ddd;
-      border-radius: 8px;
+      border-radius: 0;
       font-size: 13px;
       outline: none;
-      background: #fff;
+      background: #f5f3f0;
       transition: all 0.2s ease;
     }
 
@@ -437,19 +450,22 @@ function injectWidget(initialStorage) {
     =============================== */
 
     .readmark-highlights-grid {
+      padding: 12px 20px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      flex: 1;
+    }
+
+    .readmark-tags-view .readmark-highlights-grid {
+      padding: 0 4px;
     }
 
     .readmark-highlight-item {
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
+      background: #f8f8f8;
+      border: 1px solid #222220;
+      border-radius: 0;
+      padding: 40px 16px 16px 16px;
+      
       gap: 8px;
       min-height: 120px;
       transition: all 0.2s ease;
@@ -461,10 +477,11 @@ function injectWidget(initialStorage) {
     }
 
     .readmark-highlight-text {
+      margin-top: 8px;
       font-size: 13px;
       line-height: 1.4;
       color: #111;
-      flex: 1;
+      
       word-break: break-word;
     }
 
@@ -474,7 +491,7 @@ function injectWidget(initialStorage) {
       color: #666;
       background: #f9f9f9;
       padding: 6px 8px;
-      border-radius: 4px;
+      border-radius: 0;
       border-left: 2px solid #ddd;
     }
 
@@ -491,7 +508,7 @@ function injectWidget(initialStorage) {
       color: #555;
       font-size: 10px;
       padding: 3px 7px;
-      border-radius: 4px;
+      border-radius: 0;
     }
 
     .readmark-highlight-date {
@@ -499,11 +516,74 @@ function injectWidget(initialStorage) {
       color: #aaa;
     }
 
+    .readmark-highlight-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 20px;
+      height: 20px;
+      background: transparent;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .readmark-highlight-delete:hover {
+      color: #333;
+    }
+
+    .readmark-highlight-item:hover .readmark-highlight-delete {
+      opacity: 1;
+    }
+
+    .readmark-highlight-item {
+      position: relative;
+    }
+
     .readmark-no-highlights {
       text-align: center;
       padding: 60px 20px;
       color: #999;
+    }
+
+    .readmark-tags-view {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .readmark-tags-back {
+      padding: 0 4px;
+    }
+
+    .readmark-back-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
       font-size: 13px;
+      padding: 8px 0;
+      text-decoration: underline;
+    }
+
+    .readmark-back-btn:hover {
+      color: #111;
+    }
+
+    .readmark-tag-item {
+      cursor: pointer;
+      min-height: 80px;
+    }
+
+    .readmark-tag-item:hover {
+      border-color: #333;
     }
 
     /* ===============================
@@ -534,7 +614,7 @@ function injectWidget(initialStorage) {
     .readmark-modal {
       background: #f5f3f0;
       border: 1px solid #e5e5e5;
-      border-radius: 12px;
+      border-radius: 0;
       padding: 18px;
     }
 
@@ -993,6 +1073,7 @@ function setupTabs() {
   if (!tabs.length || !list) return;
 
   const render = (type) => {
+    window.__readmarkSelectedTag = null;
     safeStorageGet(["readmarks"], (res) => {
       const highlights = res.readmarks || [];
 
@@ -1014,7 +1095,7 @@ function setupTabs() {
   });
 }
 
-function renderTagsView(highlights, list) {
+function renderTagsView(highlights, list, selectedTag = null) {
   const tagMap = {};
 
   highlights.forEach(h => {
@@ -1025,17 +1106,91 @@ function renderTagsView(highlights, list) {
 
   const tags = Object.entries(tagMap);
 
+  // If a tag is selected, show highlights for that tag
+  if (selectedTag) {
+    const filtered = highlights.filter(h => (h.tags || []).includes(selectedTag));
+    list.innerHTML = `
+      <div class="readmark-tags-view">
+        <div class="readmark-tags-back">
+          <button class="readmark-back-btn" id="readmark-back-btn">← Back to tags</button>
+        </div>
+        <div class="readmark-highlights-grid">
+          ${filtered.map((h, idx) => {
+            const origIdx = highlights.indexOf(h);
+            return `
+              <div class="readmark-highlight-item" data-index="${origIdx}">
+                <button class="readmark-highlight-delete" data-index="${origIdx}" title="Delete">×</button>
+                <div class="readmark-highlight-text">"${h.text}"</div>
+                ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
+                ${h.tags && h.tags.length ? `
+                  <div class="readmark-highlight-tags">
+                    ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
+                  </div>
+                ` : ''}
+                ${h.timestamp ? `
+                  <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    // Attach back button handler
+    const backBtn = document.getElementById('readmark-back-btn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        renderTagsView(highlights, list, null);
+      };
+    }
+
+    // Attach delete handlers
+    list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index, 10);
+        deleteHighlight(idx);
+      };
+    });
+    return;
+  }
+
   if (!tags.length) {
     list.innerHTML = `<div class="readmark-no-highlights">No tags yet</div>`;
     return;
   }
 
   list.innerHTML = tags.map(([tag, count]) => `
-    <div class="readmark-highlight-item">
+    <div class="readmark-highlight-item readmark-tag-item" data-tag="${tag}">
       <div class="readmark-highlight-text">#${tag}</div>
       <div style="font-size:12px; color:#666; margin-top:4px;">${count} highlight(s)</div>
     </div>
   `).join('');
+
+  // Attach click handlers for tag items
+  list.querySelectorAll('.readmark-tag-item').forEach(item => {
+    item.onclick = () => {
+      const tag = item.dataset.tag;
+      window.__readmarkSelectedTag = tag;
+      renderTagsView(highlights, list, tag);
+    };
+  });
+
+  window.__readmarkShowTags = () => {
+    window.__readmarkSelectedTag = null;
+    renderTagsView(highlights, list, null);
+  };
+}
+
+function deleteHighlight(index) {
+  safeStorageGet(['readmarks'], (res) => {
+    const highlights = res.readmarks || [];
+    highlights.splice(index, 1);
+    safeStorageSet({ readmarks: highlights }, () => {
+      refreshHighlightsFromStorage();
+    });
+  });
 }
 
 function renderHighlights(highlights, list) {
@@ -1049,8 +1204,9 @@ function renderHighlights(highlights, list) {
   list.innerHTML = highlights
     .slice()
     .reverse()
-    .map(h => `
-      <div class="readmark-highlight-item">
+    .map((h, idx) => `
+      <div class="readmark-highlight-item" data-index="${highlights.length - 1 - idx}">
+        <button class="readmark-highlight-delete" data-index="${highlights.length - 1 - idx}" title="Delete">×</button>
         <div class="readmark-highlight-text">"${h.text}"</div>
         ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
         ${h.tags && h.tags.length ? `
@@ -1064,6 +1220,15 @@ function renderHighlights(highlights, list) {
       </div>
     `)
     .join('');
+
+  // Attach delete handlers
+  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      deleteHighlight(idx);
+    };
+  });
 }
 
 function setupSearch() {
@@ -1236,13 +1401,11 @@ function bootstrapReadmarkContentScript() {
   );
 }
 
-if (globalThis[READMARK_CONTENT_INIT]) {
-  safeStorageGet(['readmarkEnabled'], (r) => {
-    readmarkEnabled = r.readmarkEnabled ?? true;
-    if (window.self === window.top) applyWidgetVisibility();
-  });
+if (window.__READMARK_LOADED__) {
+  console.log("⚠️ Readmark already initialized");
 } else {
-  globalThis[READMARK_CONTENT_INIT] = true;
+  window.__READMARK_LOADED__ = true;
+
   registerReadmarkContentListeners(window.self === window.top);
   bootstrapReadmarkContentScript();
 }
