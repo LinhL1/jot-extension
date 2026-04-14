@@ -439,6 +439,7 @@ const styles = `
   }
 
   .readmark-fab {
+    pointer-events: none;
     position: absolute;
     inset: 0;
     margin: auto;
@@ -457,14 +458,15 @@ const styles = `
     pointer-events: none;
     transform: scale(0.85);
     transition:
-      opacity 0.35s ease 0.08s,
-      transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1) 0.06s,
-      background 0.2s ease;
+    opacity 0.35s ease 0.08s,
+    transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1) 0.06s,
+    background 0.2s ease;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
   }
 
-  .readmark-fab:hover {
-    background: #222;
+  .readmark-fab img,
+  .readmark-fab svg {
+    pointer-events: none;
   }
 
   .readmark-fab:active {
@@ -477,9 +479,6 @@ const styles = `
     transform: scale(1);
   }
 
-  .readmark-fab svg {
-    display: block;
-  }
 
   .readmark-header {
     background: #111;
