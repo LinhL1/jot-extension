@@ -465,7 +465,6 @@ function injectWidget(initialStorage) {
       border: 1px solid #222220;
       border-radius: 0;
       padding: 40px 16px 16px 16px;
-      
       gap: 8px;
       min-height: 120px;
       transition: all 0.2s ease;
@@ -481,7 +480,6 @@ function injectWidget(initialStorage) {
       font-size: 13px;
       line-height: 1.4;
       color: #111;
-      
       word-break: break-word;
     }
 
@@ -616,42 +614,131 @@ function injectWidget(initialStorage) {
       border: 1px solid #e5e5e5;
       border-radius: 0;
       padding: 18px;
+      max-width: 450px;
+      width: 90%;
     }
 
     .readmark-modal-title {
       font-weight: 600;
       margin-bottom: 10px;
+      font-size: 14px;
+      color: #111;
     }
 
     .readmark-modal-text {
       font-size: 13px;
       background: #fff;
       border-left: 3px solid #111;
-      padding: 10px;
-      margin-bottom: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
     }
 
     .readmark-form-input,
     .readmark-form-textarea {
       width: 100%;
       border: 1px solid #ddd;
-      padding: 8px;
-      border-radius: 8px;
+      padding: 10px;
+      border-radius: 0;
+      font-family: inherit;
+      font-size: 13px;
+      color: #111;
+    }
+
+    .readmark-form-textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .readmark-form-input:focus,
+    .readmark-form-textarea:focus {
+      outline: none;
+      border-color: #999;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
     }
 
     .readmark-modal-actions {
       display: flex;
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 16px;
     }
 
     .readmark-modal-actions button {
       flex: 1;
       padding: 10px;
-      border-radius: 8px;
-      border: none;
+      border-radius: 0;
+      border: 1px solid #ddd;
       cursor: pointer;
       font-weight: 500;
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+
+    .readmark-modal-actions .readmark-btn-primary {
+      background: #111;
+      color: #f6f4f0;
+      border: none;
+    }
+
+    .readmark-modal-actions .readmark-btn-primary:hover {
+      background: #222;
+    }
+
+    .readmark-modal-actions .readmark-btn-secondary:hover {
+      background: #f0f0f0;
+    }
+
+    /* ===============================
+       TAG AUTOCOMPLETE
+    =============================== */
+
+    .readmark-tags-input-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .readmark-form-input.readmark-tags-input {
+      padding-right: 10px;
+    }
+
+    .readmark-tags-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-top: none;
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 1000003;
+      display: none;
+    }
+
+    .readmark-tags-dropdown.active {
+      display: block;
+    }
+
+    .readmark-tags-dropdown-item {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #111;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.15s ease;
+    }
+
+    .readmark-tags-dropdown-item:hover,
+    .readmark-tags-dropdown-item.highlighted {
+      background: #f0f0f0;
+    }
+
+    .readmark-tags-dropdown-item:last-child {
+      border-bottom: none;
     }
   `;
   document.head.appendChild(style);
@@ -883,6 +970,98 @@ function setupWidgetEvents(initialStorage) {
   }
 }
 
+function setupTagAutocomplete(tagsInput, availableTags) {
+  const container = tagsInput.parentElement;
+  let dropdown = container.querySelector('.readmark-tags-dropdown');
+  
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.className = 'readmark-tags-dropdown';
+    container.appendChild(dropdown);
+  }
+
+  let highlightedIndex = -1;
+
+  function updateDropdown() {
+    const inputValue = tagsInput.value.toLowerCase();
+    const currentTags = inputValue
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    const lastTag = currentTags[currentTags.length - 1] || '';
+
+    const matches = availableTags.filter(tag =>
+      tag.toLowerCase().includes(lastTag.toLowerCase()) &&
+      !currentTags.includes(tag)
+    );
+
+    if (!lastTag || matches.length === 0) {
+      dropdown.classList.remove('active');
+      return;
+    }
+
+    dropdown.innerHTML = matches
+      .map((tag, idx) => `
+        <div class="readmark-tags-dropdown-item" data-index="${idx}">
+          #${tag}
+        </div>
+      `)
+      .join('');
+
+    dropdown.classList.add('active');
+    highlightedIndex = -1;
+
+    dropdown.querySelectorAll('.readmark-tags-dropdown-item').forEach((item, idx) => {
+      item.addEventListener('click', () => {
+        selectTag(tag = item.textContent.trim().substring(1));
+      });
+    });
+  }
+
+  function selectTag(tag) {
+    const currentTags = tagsInput.value
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    
+    currentTags[currentTags.length - 1] = tag;
+    tagsInput.value = currentTags.join(', ') + ', ';
+    dropdown.classList.remove('active');
+    tagsInput.focus();
+    updateDropdown();
+  }
+
+  tagsInput.addEventListener('input', updateDropdown);
+
+  tagsInput.addEventListener('keydown', (e) => {
+    if (!dropdown.classList.contains('active')) return;
+
+    const items = dropdown.querySelectorAll('.readmark-tags-dropdown-item');
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+      updateHighlight(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlightedIndex = Math.max(highlightedIndex - 1, -1);
+      updateHighlight(items);
+    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+      e.preventDefault();
+      const selectedTag = items[highlightedIndex].textContent.trim().substring(1);
+      selectTag(selectedTag);
+    } else if (e.key === 'Escape') {
+      dropdown.classList.remove('active');
+    }
+  });
+
+  function updateHighlight(items) {
+    items.forEach((item, idx) => {
+      item.classList.toggle('highlighted', idx === highlightedIndex);
+    });
+  }
+}
+
 function showSaveDialog(selectedText) {
   if (!readmarkEnabled) return;
   if (!extensionContextValid()) return;
@@ -915,18 +1094,19 @@ function showSaveDialog(selectedText) {
     <div class="readmark-modal">
       <div class="readmark-modal-title">Save Highlight</div>
 
-      <div class="readmark-modal-text">
-        "${trimmed.substring(0, 200)}${trimmed.length > 200 ? '...' : ''}"
-      </div>
+      <div class="readmark-modal-text">"${trimmed.substring(0, 300)}${trimmed.length > 300 ? '...' : ''}"</div>
 
       <div class="readmark-form-group">
         <label class="readmark-form-label">Your Notes (optional)</label>
-        <textarea class="readmark-form-textarea" id="readmark-note-input" style="font-family: inherit;"></textarea>
+        <textarea class="readmark-form-textarea" id="readmark-note-input" placeholder="Add your thoughts or context..."></textarea>
       </div>
 
       <div class="readmark-form-group">
         <label class="readmark-form-label">Tags</label>
-        <input class="readmark-form-input" id="readmark-tags-input" placeholder="e.g. learning, idea" />
+        <div class="readmark-tags-input-container">
+          <input class="readmark-form-input readmark-tags-input" id="readmark-tags-input" placeholder="e.g. learning, idea (separate with commas)" />
+          <div class="readmark-tags-dropdown"></div>
+        </div>
       </div>
 
       <div class="readmark-modal-actions">
@@ -999,6 +1179,22 @@ function showSaveDialog(selectedText) {
   document.addEventListener("mouseup", () => {
     isDragging = false;
     document.body.style.userSelect = "auto";
+  });
+
+  /* =========================
+     SETUP TAG AUTOCOMPLETE
+  ========================= */
+  safeStorageGet(['readmarks'], (res) => {
+    const highlights = res.readmarks || [];
+    const allTags = new Set();
+    highlights.forEach(h => {
+      (h.tags || []).forEach(t => allTags.add(t));
+    });
+    const availableTags = Array.from(allTags).sort();
+    const tagsInput = document.getElementById('readmark-tags-input');
+    if (tagsInput) {
+      setupTagAutocomplete(tagsInput, availableTags);
+    }
   });
 
   /* =========================

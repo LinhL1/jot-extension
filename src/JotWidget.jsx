@@ -464,10 +464,12 @@ const styles = `
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
   }
 
-  .readmark-fab img,
-  .readmark-fab svg {
-    pointer-events: none;
-  }
+
+  .readmark-fab img {
+  pointer-events: none;
+  user-drag: none;
+  -webkit-user-drag: none;
+}
 
   .readmark-fab:active {
     cursor: grabbing;
