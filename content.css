@@ -340,6 +340,11 @@
   font-weight: 500;
 }
 
+#readmark-widget-container .readmark-form-input::placeholder,
+#readmark-widget-container .readmark-form-textarea::placeholder {
+  color: #bbb;
+}
+
 .readmark-form-input,
 .readmark-form-textarea {
   width: 100%;
@@ -348,7 +353,7 @@
   border-radius: 6px;
   font-size: 13px;
   font-family: inherit;
-  color: #111;
+  color: #4c4949;
   transition: border-color 0.2s ease;
 }
 
@@ -358,6 +363,7 @@
   border-color: #000;
   box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
 }
+
 
 .readmark-form-textarea {
   resize: vertical;
