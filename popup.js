@@ -74,84 +74,10 @@ function updateToggleUI(enabled) {
 
 
 // =====================
-// OPEN FULL PAGE
+// OPEN INTERACTIVE BRAIN VIEW
 // =====================
 document.getElementById('open-all').addEventListener('click', function() {
-  chrome.storage.local.get(['readmarks'], function(result) {
-    const highlights = result.readmarks || [];
-
-    const htmlContent = `
-      <html>
-      <head>
-        <title>ReadMark</title>
-      </head>
-      <body>
-        <h1>All Highlights</h1>
-        ${highlights.map(h => `
-          <div>
-            <p>"${h.text}"</p>
-            ${h.note ? `<p>📝 ${h.note}</p>` : ""}
-            ${(h.tags || []).map(t => `<span>${t}</span>`).join(' ')}
-          </div>
-        `).join('')}
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-
-    chrome.tabs.create({ url });
-  });
+  // Open the brain.html page
+  chrome.tabs.create({ url: chrome.runtime.getURL('brain.html') });
 });
 
-
-// =====================
-// IMPORT (FIXED + CLEAN MERGE)
-// =====================
-const importBtn = document.getElementById("importBtn");
-const importFile = document.getElementById("importFile");
-
-if (importBtn && importFile) {
-  importBtn.addEventListener("click", () => importFile.click());
-
-  importFile.addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = function (e) {
-      try {
-        const importedData = JSON.parse(e.target.result);
-
-        if (!Array.isArray(importedData)) {
-          throw new Error("Invalid format");
-        }
-
-        chrome.storage.local.get(["readmarks"], (result) => {
-          const existing = result.readmarks || [];
-
-          const combined = [...existing, ...importedData];
-
-          const unique = combined.filter((item, index, self) =>
-            index === self.findIndex(t =>
-              t.text === item.text &&
-              t.url === item.url &&
-              t.timestamp === item.timestamp
-            )
-          );
-
-          chrome.storage.local.set({ readmarks: unique }, () => {
-            alert(`✅ Imported! ${unique.length - existing.length} new notes added.`);
-          });
-        });
-
-      } catch (err) {
-        alert("❌ Invalid JSON file");
-      }
-    };
-
-    reader.readAsText(file);
-  });
-}

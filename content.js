@@ -663,6 +663,11 @@ function injectWidget(initialStorage) {
       color: #111;
     }
 
+    .readmark-form-input::placeholder,
+    .readmark-form-textarea::placeholder {
+      color: #bbb;
+    }
+
     .readmark-form-textarea {
       resize: vertical;
       min-height: 60px;

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            margin-left: 20px;
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+        }
+
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        
+        body {
+            background: #f6f4f0;
+            color: #111;
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e5e5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #1d1911;
+            background: #f6f4f0;
+            color: #111;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .btn-primary {
+            background: #111;
+            color: #f6f4f0;
+            border: 1px solid #111;
+        }
+        
+        .btn-primary:hover {
+            background: #2b2a2a;
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 150px);
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            background: #fcfbf9;
+            overflow: hidden;
+        }
+        
+        #connection-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        body {
+            overflow: hidden;
+            position: relative;
+            height: 100vh;
+        }
+
+        #board {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            transition: transform 0.1s ease;
+        }
+
+ 
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 150px);
+            overflow: hidden;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            background: #fcfbf9;
+        }
+
+        #viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5000px; /* Large canvas for infinite space */
+            height: 5000px;
+            transform-origin: 0 0;
+        }
+                
+        .highlight-card {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 0;
+            padding: 20px;
+            min-width: 250px;
+            max-width: 320px;
+            cursor: grab;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: box-shadow 0.2s ease;
+            z-index: 2;
+            user-select: none;
+        }
+        
+        .highlight-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        
+        .highlight-card.dragging {
+            cursor: grabbing;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+            z-index: 3;
+        }
+        
+        .highlight-text {
+            font-style: italic;
+            font-size: 15px;
+            line-height: 1.5;
+            color: #111;
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+        
+        .highlight-note {
+            background: #f9f9f9;
+            border-left: 3px solid #ddd;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #555;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .highlight-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 12px 0 8px 0;
+        }
+        
+        .tag {
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            color: #555;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .highlight-meta {
+            font-size: 12px;
+            color: #888;
+            margin-top: 8px;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 8px;
+        }
+        
+        .card-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .card-btn {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: #f6f4f0;
+            color: #555;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+       }
+        
+        .card-btn:hover {
+            background: #e9e9e9;
+        }
+        
+        .connection-btn {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #f6f4f0;
+            border: 1px solid #ccc;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            z-index: 4;
+        }
+        
+        .connection-btn:hover {
+            background: #e9e9e9;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #999;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="logo.png" alt="Jot Logo" class="header-logo">
+        <div class="controls">
+            <button class="btn btn-primary" id="add-note-btn">+ Add Note</button>
+            <button class="btn" id="save-layout-btn">Save Layout</button>
+            <button class="btn" id="reset-layout-btn">Reset View</button>
+        </div>
+    </header>
+    
+
+<div class="canvas-container">
+    <canvas id="connection-canvas"></canvas>
+    <div id="board" style="position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; transform-origin: 0 0;">
+        <div id="notes-container"></div>
+    </div>
+    <div class="empty-state" id="empty-state">
+        No notes yet. Click "Add Note" to get started.
+    </div>
+</div>
+
+
+
+    <div class="modal-overlay" id="note-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-title" id="modal-title">Add New Note</div>
+            <div class="form-group">
+                <label class="form-label">Text</label>
+                <textarea class="form-textarea" id="note-text" placeholder="Enter your text here..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes (optional)</label>
+                <textarea class="form-textarea" id="note-comment" placeholder="Add your thoughts or context..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tags (comma separated)</label>
+                <input type="text" class="form-input" id="note-tags" placeholder="e.g. idea, important, research">
+            </div>
+            <div class="form-actions">
+                <button class="btn" id="cancel-note">Cancel</button>
+                <button class="btn btn-primary" id="save-note">Save</button>
+            </div>
+        </div>
+    </div>
+    <script src="brain.js"></script>
+
+    
+</body>
+</html>
