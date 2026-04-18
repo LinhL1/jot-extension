@@ -454,20 +454,25 @@ function injectWidget(initialStorage) {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+      align-items: start;
     }
 
     .readmark-tags-view .readmark-highlights-grid {
-      padding: 0 4px;
+      padding: 12px 20px;
+      gap: 12px;
     }
 
     .readmark-highlight-item {
       background: #f8f8f8;
       border: 1px solid #222220;
       border-radius: 0;
-      padding: 40px 16px 16px 16px;
-      gap: 8px;
-      min-height: 120px;
+      padding: 16px;
+      min-height: auto;
       transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      gap: 8px;
     }
 
     .readmark-highlight-item:hover {
@@ -476,28 +481,28 @@ function injectWidget(initialStorage) {
     }
 
     .readmark-highlight-text {
-      margin-top: 8px;
       font-size: 13px;
       line-height: 1.4;
       color: #111;
       word-break: break-word;
+      padding-right: 20px;
     }
 
     .readmark-highlight-note {
-      margin-top: 4px;
       font-size: 11px;
       color: #666;
       background: #f9f9f9;
-      padding: 6px 8px;
+      padding: 8px 10px;
       border-radius: 0;
       border-left: 2px solid #ddd;
+      line-height: 1.4;
     }
 
     .readmark-highlight-tags {
-      margin-top: auto;
       display: flex;
       gap: 4px;
       flex-wrap: wrap;
+      margin-top: 4px;
     }
 
     .readmark-tag {
@@ -505,13 +510,15 @@ function injectWidget(initialStorage) {
       border: 1px solid #e0e0e0;
       color: #555;
       font-size: 10px;
-      padding: 3px 7px;
+      padding: 4px 8px;
       border-radius: 0;
+      white-space: nowrap;
     }
 
     .readmark-highlight-date {
       font-size: 9px;
       color: #aaa;
+      margin-top: 4px;
     }
 
     .readmark-highlight-delete {
@@ -531,6 +538,8 @@ function injectWidget(initialStorage) {
       justify-content: center;
       font-size: 16px;
       line-height: 1;
+      padding: 0;
+      flex-shrink: 0;
     }
 
     .readmark-highlight-delete:hover {
@@ -539,10 +548,6 @@ function injectWidget(initialStorage) {
 
     .readmark-highlight-item:hover .readmark-highlight-delete {
       opacity: 1;
-    }
-
-    .readmark-highlight-item {
-      position: relative;
     }
 
     .readmark-no-highlights {
@@ -606,7 +611,11 @@ function injectWidget(initialStorage) {
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.35);
-      z-index: 1000000;
+      z-index: 2147483647;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
     }
 
     .readmark-modal {
@@ -616,6 +625,11 @@ function injectWidget(initialStorage) {
       padding: 18px;
       max-width: 450px;
       width: 90%;
+      position: relative;
+      z-index: 2147483648;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
 
     .readmark-modal-title {
@@ -1116,69 +1130,80 @@ function showSaveDialog(selectedText) {
     </div>
   `;
 
-  document.body.appendChild(overlay);
+  // Ensure overlay is added to body and not affected by page styles
+  const htmlElement = document.documentElement;
+  htmlElement.appendChild(overlay);
 
   const modal = overlay.querySelector(".readmark-modal");
   const title = overlay.querySelector(".readmark-modal-title");
 
+  // Style overlay to be truly on top
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 2147483647;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  `;
+
+  // Reset modal positioning to center by default
+  modal.style.cssText = `
+    position: fixed;
+    z-index: 2147483648;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 450px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+  `;
+
   /* =========================
-     POSITION NEAR SELECTION
-  ========================= */
-  modal.style.position = "fixed";
-  modal.style.zIndex = 1000001;
-
-  const top = window.scrollY + rect.bottom + 10;
-  const left = window.scrollX + rect.left;
-  const rectTop = rect.top;
-
-  modal.style.top = `${top}px`;
-  modal.style.left = `${left}px`;
-
-  /* keep inside viewport */
-  requestAnimationFrame(() => {
-    const mRect = modal.getBoundingClientRect();
-
-    if (mRect.right > window.innerWidth) {
-      modal.style.left = `${window.innerWidth - mRect.width - 12}px`;
-    }
-
-    if (mRect.bottom > window.innerHeight) {
-      modal.style.top = `${window.scrollY + rectTop - mRect.height - 12}px`;
-    }
-  });
-
-  /* =========================
-     DRAGGING (FIXED)
+     DRAGGING (CENTERED, THEN FREE)
   ========================= */
   let isDragging = false;
   let offsetX = 0;
   let offsetY = 0;
+  let dragStarted = false;
 
   title.style.cursor = "grab";
 
   title.addEventListener("mousedown", (e) => {
     isDragging = true;
+    dragStarted = true;
 
     const rect = modal.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
 
     modal.style.position = "fixed";
-    modal.style.zIndex = 1000002;
+    modal.style.zIndex = 2147483648;
+    modal.style.transform = "none";
 
     document.body.style.userSelect = "none";
+    title.style.cursor = "grabbing";
   });
 
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
 
-    modal.style.left = `${e.clientX - offsetX}px`;
-    modal.style.top = `${e.clientY - offsetY}px`;
+    if (dragStarted) {
+      modal.style.left = `${e.clientX - offsetX}px`;
+      modal.style.top = `${e.clientY - offsetY}px`;
+    }
   });
 
   document.addEventListener("mouseup", () => {
-    isDragging = false;
-    document.body.style.userSelect = "auto";
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = "auto";
+      title.style.cursor = "grab";
+    }
   });
 
   /* =========================
