@@ -10,9 +10,18 @@ let currentEditId = null;
 let boardOffset = { x: 0, y: 0 };
 let scale = 1;
 
+// Drawing mode variables
+let isDrawing = false;
+let isDrawMode = false;
+let isViewMode = true;
+let drawColor = '#111111';
+let drawSize = 2;
+let lastX = 0;
+let lastY = 0;
+
 // Load data from storage
 function loadData() {
-    chrome.storage.local.get(['readmarks', 'readmarkConnections', 'brainViewSettings'], function(result) {
+    chrome.storage.local.get(['readmarks', 'readmarkConnections', 'brainViewSettings', 'jotDrawing'], function(result) {
         const highlights = result.readmarks || [];
         connections = result.readmarkConnections || [];
         
@@ -31,7 +40,7 @@ function loadData() {
         
         // Transform highlights into notes format - Use saved positions!
         notes = highlights.map(h => ({
-            id: h.id || Date.now() + Math.random(),
+            id: typeof h.id === 'number' ? h.id : parseInt(h.id) || Date.now(),
             text: h.text,
             note: h.note,
             tags: h.tags || [],
@@ -42,6 +51,11 @@ function loadData() {
         }));
         
         console.log('Notes with positions:', notes.map(n => ({ x: n.x, y: n.y })));
+        
+        // Load drawing if it exists
+        if (result.jotDrawing) {
+            loadDrawing(result.jotDrawing);
+        }
         
         // Initialize the app
         init();
@@ -62,24 +76,193 @@ function saveToStorage() {
         y: note.y  // Save the actual positions
     }));
     
+    // Log positions being saved
+    console.log('Saving note positions:', highlights.map(n => ({ id: n.id, x: n.x, y: n.y })));
+    
     // Save board settings
     const brainViewSettings = {
         boardOffset,
         scale
     };
     
+    // Save drawing
+    const drawingCanvas = document.getElementById('drawing-canvas');
+    const jotDrawing = drawingCanvas ? drawingCanvas.toDataURL('image/png') : null;
+    
     chrome.storage.local.set({ 
         readmarks: highlights,
         readmarkConnections: connections,
-        brainViewSettings
+        brainViewSettings,
+        jotDrawing
     }, function() {
         console.log('Data saved to storage:', {
             notesCount: highlights.length,
+            positions: highlights.map(n => ({ id: n.id, x: n.x, y: n.y })),
             boardOffset,
-            scale
+            scale,
+            hasDrawing: !!jotDrawing
         });
     });
 }
+
+// ==================== DRAWING SYSTEM ====================
+function initializeDrawing() {
+    const drawingCanvas = document.getElementById('drawing-canvas');
+    if (!drawingCanvas) return;
+    
+    const ctx = drawingCanvas.getContext('2d');
+    resizeDrawingCanvas();
+    
+    // Drawing event listeners
+    drawingCanvas.addEventListener('mousedown', (e) => {
+        if (!isDrawMode) return;
+        isDrawing = true;
+        const rect = drawingCanvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+    });
+
+    drawingCanvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing || !isDrawMode) return;
+        const rect = drawingCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        ctx.strokeStyle = drawColor;
+        ctx.lineWidth = drawSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        lastX = x;
+        lastY = y;
+
+        saveToStorage();
+    });
+
+    drawingCanvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+    });
+
+    drawingCanvas.addEventListener('mouseleave', () => {
+        isDrawing = false;
+    });
+
+    window.addEventListener('resize', resizeDrawingCanvas);
+
+    // Set up drawing controls
+    setupDrawingControls();
+}
+
+function resizeDrawingCanvas() {
+    const drawingCanvas = document.getElementById('drawing-canvas');
+    if (!drawingCanvas) return;
+    
+    drawingCanvas.width = drawingCanvas.offsetWidth;
+    drawingCanvas.height = drawingCanvas.offsetHeight;
+}
+
+function loadDrawing(imageData) {
+    const drawingCanvas = document.getElementById('drawing-canvas');
+    if (!drawingCanvas) return;
+    
+    const ctx = drawingCanvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+    };
+    img.src = imageData;
+}
+
+function setupDrawingControls() {
+    const drawModeBtn = document.getElementById('draw-mode-btn');
+    const selectModeBtn = document.getElementById('select-mode-btn');
+    const viewModeBtn = document.getElementById('view-mode-btn');
+    const drawColorInput = document.getElementById('draw-color');
+    const drawSizeInput = document.getElementById('draw-size');
+    const clearCanvasBtn = document.getElementById('clear-canvas-btn');
+
+    if (drawModeBtn) {
+        drawModeBtn.addEventListener('click', () => {
+            isDrawMode = true;
+            isViewMode = false;
+            const drawingCanvas = document.getElementById('drawing-canvas');
+            const notesContainer = document.querySelector('.notes-container');
+            if (drawingCanvas) {
+                drawingCanvas.classList.remove('disabled');
+                drawingCanvas.classList.remove('view-mode');
+            }
+            if (notesContainer) notesContainer.classList.remove('view-mode');
+            drawModeBtn.classList.add('active');
+            if (selectModeBtn) selectModeBtn.classList.remove('active');
+            if (viewModeBtn) viewModeBtn.classList.remove('active');
+        });
+    }
+
+    if (selectModeBtn) {
+        selectModeBtn.addEventListener('click', () => {
+            isDrawMode = false;
+            isViewMode = false;
+            const drawingCanvas = document.getElementById('drawing-canvas');
+            const notesContainer = document.querySelector('.notes-container');
+            if (drawingCanvas) {
+                drawingCanvas.classList.add('disabled');
+                drawingCanvas.classList.remove('view-mode');
+            }
+            if (notesContainer) notesContainer.classList.remove('view-mode');
+            if (drawModeBtn) drawModeBtn.classList.remove('active');
+            selectModeBtn.classList.add('active');
+            if (viewModeBtn) viewModeBtn.classList.remove('active');
+        });
+    }
+
+    if (viewModeBtn) {
+        viewModeBtn.addEventListener('click', () => {
+            isDrawMode = false;
+            isViewMode = true;
+            const drawingCanvas = document.getElementById('drawing-canvas');
+            const notesContainer = document.querySelector('.notes-container');
+            if (drawingCanvas) {
+                drawingCanvas.classList.remove('disabled');
+                drawingCanvas.classList.add('view-mode');
+            }
+            if (notesContainer) notesContainer.classList.add('view-mode');
+            if (drawModeBtn) drawModeBtn.classList.remove('active');
+            if (selectModeBtn) selectModeBtn.classList.remove('active');
+            viewModeBtn.classList.add('active');
+        });
+    }
+
+    if (drawColorInput) {
+        drawColorInput.addEventListener('change', (e) => {
+            drawColor = e.target.value;
+        });
+    }
+
+    if (drawSizeInput) {
+        drawSizeInput.addEventListener('change', (e) => {
+            drawSize = parseInt(e.target.value);
+        });
+    }
+
+    if (clearCanvasBtn) {
+        clearCanvasBtn.addEventListener('click', () => {
+            if (confirm('Clear all drawings? This cannot be undone.')) {
+                const drawingCanvas = document.getElementById('drawing-canvas');
+                if (drawingCanvas) {
+                    const ctx = drawingCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                }
+                saveToStorage();
+            }
+        });
+    }
+}
+
+// ==================== INITIALIZATION ====================
 
 // Initialize the app
 function init() {
@@ -87,6 +270,13 @@ function init() {
     renderNotes();
     updateEmptyState();
     updateBoardTransform();
+    initializeDrawing();
+    
+    // Set view mode as default
+    const viewModeBtn = document.getElementById('view-mode-btn');
+    if (viewModeBtn) {
+        viewModeBtn.click();
+    }
     
     // Event listeners
     window.addEventListener('resize', resizeCanvas);
@@ -169,11 +359,11 @@ function renderNotes() {
         card.className = 'highlight-card';
         card.style.left = `${note.x}px`;
         card.style.top = `${note.y}px`;
-        card.setAttribute('data-id', note.id);
+        card.setAttribute('data-id', String(note.id));
         
         card.innerHTML = `
-            <div class="highlight-text">"${note.text}"</div>
-            ${note.note ? `<div class="highlight-note">${note.note}</div>` : ''}
+            <div class="highlight-text">"${escapeHtml(note.text)}"</div>
+            ${note.note ? `<div class="highlight-note">${escapeHtml(note.note)}</div>` : ''}
             ${note.tags && note.tags.length ? `
                 <div class="highlight-tags">
                     ${note.tags.map(t => `<span class="tag">#${t}</span>`).join('')}
@@ -184,7 +374,6 @@ function renderNotes() {
                 ${note.timestamp ? `<div>Saved: ${new Date(note.timestamp).toLocaleString()}</div>` : ''}
             </div>
             <div class="card-actions">
-                <button class="card-btn connect-btn" data-id="${note.id}">Connect</button>
                 <button class="card-btn edit-btn" data-id="${note.id}">Edit</button>
                 <button class="card-btn delete-btn" data-id="${note.id}">Delete</button>
             </div>
@@ -194,14 +383,8 @@ function renderNotes() {
         card.addEventListener('mousedown', startDragging);
         
         // Add button functionality
-        const connectBtn = card.querySelector('.connect-btn');
         const editBtn = card.querySelector('.edit-btn');
         const deleteBtn = card.querySelector('.delete-btn');
-        
-        connectBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            startConnection(note.id);
-        });
         
         editBtn.addEventListener('click', (e) =>{
             e.stopPropagation();
@@ -216,18 +399,26 @@ function renderNotes() {
         notesContainer.appendChild(card);
     });
     
+    // Save positions after rendering
+    saveToStorage();
     drawConnections();
 }
 
 // Start dragging a note
 function startDragging(e) {
     if (e.target.classList.contains('card-btn')) return;
+    if (isDrawMode || isViewMode) return; // Don't drag notes in draw or view mode
     
     activeCard = e.currentTarget;
     isDragging = true;
     activeCard.classList.add('dragging');
     
+    // Get position relative to the card itself
     const rect = activeCard.getBoundingClientRect();
+    const container = document.querySelector('.canvas-container');
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate click offset within the card
     dragOffset.x = e.clientX - rect.left;
     dragOffset.y = e.clientY - rect.top;
     
@@ -238,23 +429,33 @@ function startDragging(e) {
 function onDrag(e) {
     if (!isDragging || !activeCard) return;
     
-    const container = document.getElementById('board');
+    // Get the container (canvas) position
+    const container = document.querySelector('.canvas-container');
     const containerRect = container.getBoundingClientRect();
     
-    // Calculate position relative to board
-    let x = e.clientX - containerRect.left - dragOffset.x;
-    let y = e.clientY - containerRect.top - dragOffset.y;
+    // Calculate position relative to viewport
+    let mouseX = e.clientX - containerRect.left;
+    let mouseY = e.clientY - containerRect.top;
     
-    // Constrain to board bounds
-    x = Math.max(0, Math.min(container.scrollWidth - activeCard.offsetWidth, x));
-    y = Math.max(0, Math.min(container.scrollHeight - activeCard.offsetHeight, y));
+    // Account for board transform (scale and offset)
+    // Reverse the board transformation to get coordinates in board space
+    let boardX = (mouseX - boardOffset.x) / scale;
+    let boardY = (mouseY - boardOffset.y) / scale;
+    
+    // Apply drag offset
+    let x = boardX - dragOffset.x;
+    let y = boardY - dragOffset.y;
+    
+    // Optional: Constrain to board bounds (comment out for infinite)
+    // x = Math.max(0, Math.min(5000 - activeCard.offsetWidth, x));
+    // y = Math.max(0, Math.min(5000 - activeCard.offsetHeight, y));
     
     activeCard.style.left = `${x}px`;
     activeCard.style.top = `${y}px`;
     
     // Update the note's position in our data
-    const noteId = parseInt(activeCard.getAttribute('data-id'));
-    const note = notes.find(n => n.id === noteId);
+    const noteId = activeCard.getAttribute('data-id');
+    const note = notes.find(n => String(n.id) === String(noteId));
     if (note) {
         note.x = x;
         note.y = y;
@@ -277,12 +478,15 @@ function stopDragging() {
 
 // Start board dragging
 function startBoardDrag(e) {
+    if (isDrawMode) return; // Don't drag board in draw mode only
     if (e.target.closest('.highlight-card')) return; // Don't drag board if clicking on a card
     
     isDraggingBoard = true;
-    const rect = document.getElementById('board').getBoundingClientRect();
-    dragOffset.x = e.clientX - rect.left;
-    dragOffset.y = e.clientY - rect.top;
+    
+    // Store the current board offset when starting drag
+    dragOffset.x = e.clientX - boardOffset.x;
+    dragOffset.y = e.clientY - boardOffset.y;
+    
     document.body.style.cursor = 'grabbing';
 }
 
@@ -290,11 +494,9 @@ function startBoardDrag(e) {
 function onBoardDrag(e) {
     if (!isDraggingBoard) return;
     
-    const board = document.getElementById('board');
-    const rect = board.getBoundingClientRect();
-    
-    boardOffset.x = e.clientX - rect.left - dragOffset.x;
-    boardOffset.y = e.clientY - rect.top - dragOffset.y;
+    // Simple, direct calculation for smooth panning
+    boardOffset.x = e.clientX - dragOffset.x;
+    boardOffset.y = e.clientY - dragOffset.y;
     
     updateBoardTransform();
 }
@@ -328,58 +530,6 @@ function updateBoardTransform() {
     const board = document.getElementById('board');
     board.style.transform = `translate(${boardOffset.x}px, ${boardOffset.y}px) scale(${scale})`;
     drawConnections();
-}
-
-// Start creating a connection
-function startConnection(fromId) {
-    connectingFrom = fromId;
-    
-    // Visual feedback
-    document.querySelectorAll('.highlight-card').forEach(card => {
-        card.style.cursor = 'pointer';
-    });
-    
-    document.addEventListener('click', completeConnection);
-}
-
-// Complete connection creation
-function completeConnection(e) {
-    if (!connectingFrom) return;
-    
-    const card = e.target.closest('.highlight-card');
-    if (!card) {
-        cancelConnection();
-        return;
-    }
-    
-    const toId = parseInt(card.getAttribute('data-id'));
-    if (toId === connectingFrom) {
-        cancelConnection();
-        return;
-    }
-    
-    // Check if connection already exists
-    const connectionExists = connections.some(conn => 
-        (conn.from === connectingFrom && conn.to === toId) || 
-        (conn.from === toId && conn.to === connectingFrom)
-    );
-    
-    if (!connectionExists) {
-        connections.push({ from: connectingFrom, to: toId });
-        drawConnections();
-        saveToStorage(); // Save the new connection
-    }
-    
-    cancelConnection();
-}
-
-// Cancel connection creation
-function cancelConnection() {
-    connectingFrom = null;
-    document.querySelectorAll('.highlight-card').forEach(card => {
-        card.style.cursor = '';
-    });
-    document.removeEventListener('click', completeConnection);
 }
 
 // Draw all connections
@@ -475,7 +625,7 @@ function saveNote() {
     }
     
     if (currentEditId) {
-        // Update existing note极速加速器
+        // Update existing note
         const noteId = currentEditId;
         const existingNote = notes.find(n => n.id === noteId);
         if (existingNote) {
@@ -554,6 +704,13 @@ function updateEmptyState() {
     if (emptyState) {
         emptyState.style.display = notes.length === 0 ? 'block' : 'none';
     }
+}
+
+// HTML escape utility
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Start loading data when the page is ready
