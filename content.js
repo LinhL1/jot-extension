@@ -196,6 +196,52 @@ function injectWidget(initialStorage) {
        WIDGET SHELL
     =============================== */
 
+ 
+    .readmark-content {
+      padding: 16px 24px 24px 24px;
+      background: #f5f3f0;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px; 
+    }
+
+   
+
+
+
+    /* ===============================
+      TABS CONTAINER - FIXED
+    =============================== */
+
+    .readmark-tabs-container {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 0; /* Remove bottom margin */
+      align-items: center;
+      padding: 8px 0; /* Add some vertical padding */
+      border-bottom: 1px solid #e5e5e5; /* Visual separation */
+    }
+
+    /* ===============================
+      HIGHLIGHTS GRID - FIXED
+    =============================== */
+
+    .readmark-highlights-grid {
+      padding: 16px 0; /* Adjusted padding */
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+      flex: 1; /* Allow grid to take available space */
+      overflow-y: auto; /* Ensure scrolling works */
+    }
+
+    /* ===============================
+      WIDGET SHELL - ENSURE PROPER SIZING
+    =============================== */
+
     .readmark-widget {
       --readmark-panel-width: 480px;
       width: var(--readmark-panel-width);
@@ -208,16 +254,13 @@ function injectWidget(initialStorage) {
       transition: all 0.3s ease;
       display: flex;
       flex-direction: column;
-    }
-
-    .readmark-widget.readmark-minimized {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
+      height: auto; /* Ensure height is auto */
+      min-height: 400px; /* Minimum height */
+      
     }
 
     /* ===============================
-       PANEL
+      PANEL - FIXED
     =============================== */
 
     .readmark-panel {
@@ -225,44 +268,11 @@ function injectWidget(initialStorage) {
       flex-direction: column;
       max-height: min(90vh, 700px);
       transition: opacity 0.25s ease, transform 0.25s ease;
-    }
-
-    .readmark-widget.readmark-minimized .readmark-panel {
-      opacity: 0;
-      pointer-events: none;
+      flex: 1; /* Make panel take available space */
     }
 
     /* ===============================
-       FLOATING BUTTON
-    =============================== */
-
-    .readmark-fab {
-      position: absolute;
-      inset: 0;
-      margin: auto;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: #111;
-      color: #f6f4f0;
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.2s ease;
-      cursor: pointer;
-    }
-
-    .readmark-fab:hover {
-      background: #d8d486;
-    }
-
-    .readmark-widget.readmark-minimized .readmark-fab {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    /* ===============================
-       HEADER
+      HEADER - FIXED
     =============================== */
 
     .readmark-header {
@@ -273,8 +283,15 @@ function injectWidget(initialStorage) {
       align-items: center;
       flex-shrink: 0;
       border-bottom: 1px solid #1a1a1a;
+      margin: 0; /* Ensure no margin */
     }
 
+    .readmark-header-logo {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
     .readmark-title {
       color: #fff;
       font-weight: 700;
@@ -299,15 +316,16 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-       TAGLINE
+      TAGLINE - FIXED
     =============================== */
 
     .readmark-tagline {
       color: #666;
       font-size: 13px;
       font-style: italic;
-      padding: 12px 20px 0;
-      margin-bottom: 12px;
+      padding: 24px 20px 16px 32px; /* Even more left padding */
+      margin: 0;
+      text-align: left;
     }
 
     /* ===============================
@@ -341,10 +359,10 @@ function injectWidget(initialStorage) {
     =============================== */
 
     .readmark-search-container {
-      margin-bottom: 16px;
-      position: relative;
-      margin-top: 20px;
-    }
+        position: relative;
+        margin: 0; /* Remove margins, flexbox gap handles spacing */
+        padding: 0 20px; /* Add horizontal padding */
+      }
 
     .readmark-search-input {
       width: 90%;
@@ -799,6 +817,17 @@ function injectWidget(initialStorage) {
     .jot-modal-title:active {
       cursor: grabbing;
     }
+
+        /* Ensure the highlights list is properly scrollable */
+    .readmark-highlights-grid {
+      max-height: none; /* Remove any max-height constraints */
+    }
+
+    /* Fix for the content area scroll */
+    .readmark-content {
+      min-height: 0; /* Important for flexbox scrolling */
+    }
+
   `;
   document.head.appendChild(style);
 
@@ -806,9 +835,9 @@ function injectWidget(initialStorage) {
     <div class="readmark-widget">
       <div class="readmark-panel">
         <div class="readmark-header">
-          <div class="readmark-title">Jot.</div>
-          <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
-        </div>
+        <img src="${chrome.runtime.getURL('/logo2.png')}" class="readmark-header-logo" alt="Jot" />
+        <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
+      </div>
 
         <div class="readmark-content">
           <div class="readmark-tagline">Your second brain.</div>

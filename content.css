@@ -1,165 +1,295 @@
+/* ============================================
+   UNIFIED WIDGET STYLING - MATCHES DASHBOARD
+   ============================================ */
+
 #readmark-widget-container * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* MAIN WIDGET */
-.readmark-widget {
-  width: 480px;
-  background: #f6f4f0;
-  border: 1px solid #e5e5e5;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-  overflow: hidden;
-  transition: width 0.3s ease;
-  color: #111;
+:root {
+  --bg-primary: #f6f4f0;
+  --bg-secondary: #fff;
+  --border-light: #e5e5e5;
+  --text-primary: #111;
+  --text-secondary: #555;
+  --text-tertiary: #888;
+  --accent: #111;
 }
 
-/* SIZES */
-.readmark-widget.size-small { width: 320px; }
-.readmark-widget.size-medium { width: 420px; }
-.readmark-widget.size-large { width: 520px; }
+/* ============================================
+   MAIN WIDGET CONTAINER
+   ============================================ */
 
-/* HEADER */
+.readmark-widget {
+  width: 380px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  color: var(--text-primary);
+}
+
+.readmark-widget.size-small { 
+  width: 320px; 
+}
+
+.readmark-widget.size-medium { 
+  width: 380px; 
+}
+
+.readmark-widget.size-large { 
+  width: 450px; 
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+
 .readmark-header {
-  background: #000;
-  color: #f6f4f0;
-  padding: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: move;
+  border-bottom: 1px solid var(--border-light);
+  gap: 12px;
 }
 
-/* BUTTONS */
+.readmark-header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+/* ============================================
+   HEADER BUTTONS
+   ============================================ */
+
 .readmark-toggle,
 .readmark-size-btn {
-  background: #111;
-  border: 1px solid #333;
-  color: #f6f4f0;
-  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: 8px;
   cursor: pointer;
-}
-
-.readmark-size-btn {
-  width: 26px;
-  height: 26px;
-  font-size: 11px;
+  transition: all 0.15s ease;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .readmark-toggle {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   font-size: 16px;
+}
+
+.readmark-size-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
 }
 
 .readmark-toggle:hover,
 .readmark-size-btn:hover {
-  background: #222;
+  background: #f0f0f0;
+  border-color: #ccc;
 }
 
 .readmark-size-btn.active {
-  background: #f6f4f0;
-  color: #000;
+  background: var(--accent);
+  color: var(--bg-secondary);
+  border-color: var(--accent);
 }
 
-/* CONTENT */
+/* ============================================
+   CONTENT AREA
+   ============================================ */
+
 .readmark-content {
-  padding: 14px;
+  padding: 16px;
   max-height: 500px;
   overflow-y: auto;
-  background: #f6f4f0;
+  background: var(--bg-primary);
   display: flex;
   flex-direction: column;
 }
 
-/* STATS */
+/* Scrollbar styling */
+.readmark-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.readmark-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.readmark-content::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.readmark-content::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* ============================================
+   STATS SECTION
+   ============================================ */
+
 .readmark-stats {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid #eee;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
   padding-bottom: 12px;
 }
 
 .readmark-stat {
-  flex: 1;
   text-align: center;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--bg-primary);
+  transition: all 0.15s ease;
+}
+
+.readmark-stat:hover {
+  border-color: #ccc;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .readmark-stat-number {
   font-size: 18px;
   font-weight: 700;
-  color: #000;
+  color: var(--text-primary);
+  display: block;
 }
 
 .readmark-stat-label {
-  font-size: 11px;
-  color: #777;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
 }
 
-/* TABS */
+/* ============================================
+   TABS
+   ============================================ */
+
 .readmark-tabs {
   display: flex;
-  gap: 10px;
-  border-bottom: 1px solid #eee;
-  margin-bottom: 12px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 16px;
 }
 
 .readmark-tab {
   background: none;
   border: none;
   padding: 8px 0;
-  font-size: 13px;
-  color: #888;
+  font-size: 12px;
+  color: var(--text-tertiary);
   cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.readmark-tab:hover {
+  color: var(--text-secondary);
 }
 
 .readmark-tab.active {
-  color: #000;
+  color: var(--text-primary);
   font-weight: 600;
-  border-bottom: 2px solid #000;
 }
 
-/* HIGHLIGHTS GRID */
+.readmark-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* ============================================
+   HIGHLIGHTS GRID
+   ============================================ */
+
 .readmark-highlights-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
   padding: 0;
   align-items: start;
   align-content: start;
 }
 
-/* ===============================
-   HIGHLIGHTS - FIXED SQUARE SIZE
-=============================== */
+/* ============================================
+   HIGHLIGHT ITEM CARD
+   ============================================ */
 
 .readmark-highlight-item {
   padding: 12px;
-  margin-bottom: 10px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: auto;
-  /* Fixed square base size - expands vertically */
   width: 100%;
-  min-width: 160px;
-  aspect-ratio: 1 / 1;
-  /* Allow expansion for longer content */
-  min-height: 180px;
+  min-width: 140px;
+  min-height: 160px;
   overflow: hidden;
   overflow-y: auto;
+  transition: all 0.15s ease;
+}
+
+.readmark-highlight-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #ccc;
 }
 
 .readmark-highlight-item:hover .readmark-highlight-delete {
   opacity: 1;
 }
 
+/* Scrollbar for individual items */
+.readmark-highlight-item::-webkit-scrollbar {
+  width: 4px;
+}
+
+.readmark-highlight-item::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.readmark-highlight-item::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 2px;
+}
+
+.readmark-highlight-item::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* Delete button */
 .readmark-highlight-delete {
   position: absolute;
   top: 8px;
@@ -168,7 +298,7 @@
   height: 24px;
   background: none;
   border: none;
-  color: #999;
+  color: #ddd;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s ease, color 0.2s ease;
@@ -183,25 +313,29 @@
 }
 
 .readmark-highlight-delete:hover {
-  color: #333;
+  color: #666;
 }
+
+/* ============================================
+   HIGHLIGHT CONTENT
+   ============================================ */
 
 .readmark-highlight-text {
   font-style: italic;
   font-size: 13px;
-  color: #111;
+  color: var(--text-primary);
   line-height: 1.5;
   word-break: break-word;
-  padding-right: 28px;
+  padding-right: 24px;
   margin: 0;
 }
 
 .readmark-highlight-note {
   font-size: 12px;
-  color: #555;
+  color: var(--text-secondary);
   background: #f9f9f9;
   padding: 8px 10px;
-  border-left: 2px solid #ddd;
+  border-left: 2px solid var(--border-light);
   border-radius: 0;
   line-height: 1.4;
   margin: 0;
@@ -215,7 +349,7 @@
 }
 
 .readmark-highlight-date {
-  font-size: 11px;
+  font-size: 10px;
   color: #aaa;
   margin: 4px 0 0 0;
 }
@@ -224,64 +358,82 @@
   display: inline-block;
   font-size: 10px;
   padding: 4px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   background: #f5f5f5;
-  color: #555;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
-/* ===============================
+/* ============================================
    ACTIONS
-=============================== */
+   ============================================ */
 
 .readmark-actions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-light);
 }
 
 .readmark-btn {
   flex: 1;
-  padding: 8px;
+  padding: 10px;
   font-size: 12px;
   border-radius: 8px;
-  border: 1px solid #ddd;
-  background: #f6f4f0;
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.readmark-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
 }
 
 .readmark-btn-primary {
-  background: #000;
-  color: #f6f4f0;
-  border: none;
+  background: var(--accent);
+  color: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  font-weight: 500;
 }
 
 .readmark-btn-primary:hover {
-  background: #222;
+  background: #2b2a2a;
+  border-color: #2b2a2a;
+}
+
+.readmark-btn-secondary {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .readmark-btn-secondary:hover {
   background: #f0f0f0;
+  border-color: #ccc;
 }
 
-/* MINIMIZED */
+/* ============================================
+   MINIMIZED STATE
+   ============================================ */
+
 .readmark-minimized .readmark-content,
 .readmark-minimized .readmark-actions {
   display: none;
 }
 
-/* ===============================
-   MODAL - UNIVERSAL DISPLAY
-=============================== */
+/* ============================================
+   MODAL OVERLAY & STYLING
+   ============================================ */
 
 .readmark-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -290,23 +442,46 @@
 }
 
 .readmark-modal {
-  background: #fff;
-  border-radius: 16px;
+  background: var(--bg-primary);
+  border-radius: 10px;
   padding: 24px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   max-height: 90vh;
   overflow-y: auto;
   z-index: 2147483648;
   position: relative;
+  border: 1px solid var(--border-light);
 }
+
+.readmark-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.readmark-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.readmark-modal::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.readmark-modal::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* ============================================
+   MODAL CONTENT
+   ============================================ */
 
 .readmark-modal-title {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   cursor: grab;
+  color: #1a1a1a;
 }
 
 .readmark-modal-title:active {
@@ -315,16 +490,21 @@
 
 .readmark-modal-text {
   font-size: 14px;
-  background: #f9f9f9;
-  border-left: 3px solid #000;
+  background: var(--bg-secondary);
+  border-left: 2px solid var(--accent);
   padding: 12px;
   margin-bottom: 16px;
   line-height: 1.6;
   word-break: break-word;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  color: #111;
+  color: var(--text-primary);
+  border-radius: 6px;
 }
+
+/* ============================================
+   FORM STYLING
+   ============================================ */
 
 .readmark-form-group {
   margin-bottom: 16px;
@@ -332,43 +512,47 @@
 
 .readmark-form-label {
   display: block;
-  font-size: 12px;
-  color: #666;
+  font-size: 10px;
+  color: var(--text-tertiary);
   margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.1em;
   font-weight: 500;
-}
-
-#readmark-widget-container .readmark-form-input::placeholder,
-#readmark-widget-container .readmark-form-textarea::placeholder {
-  color: #bbb;
 }
 
 .readmark-form-input,
 .readmark-form-textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   font-size: 13px;
   font-family: inherit;
-  color: #4c4949;
-  transition: border-color 0.2s ease;
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: var(--bg-secondary);
+}
+
+.readmark-form-input::placeholder,
+.readmark-form-textarea::placeholder {
+  color: #bbb;
 }
 
 .readmark-form-input:focus,
 .readmark-form-textarea:focus {
   outline: none;
-  border-color: #000;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.05);
 }
-
 
 .readmark-form-textarea {
   resize: vertical;
   min-height: 80px;
 }
+
+/* ============================================
+   MODAL ACTIONS
+   ============================================ */
 
 .readmark-modal-actions {
   display: flex;
@@ -380,24 +564,38 @@
   flex: 1;
   padding: 10px;
   font-size: 13px;
-  border-radius: 6px;
-  border: 1px solid #ddd;
-  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  color: var(--text-primary);
+}
+
+.readmark-modal-actions .readmark-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
 }
 
 .readmark-modal-actions .readmark-btn-primary {
-  background: #000;
-  color: #fff;
-  border: none;
+  background: var(--accent);
+  color: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  font-weight: 500;
 }
 
 .readmark-modal-actions .readmark-btn-primary:hover {
-  background: #222;
+  background: #2b2a2a;
+  border-color: #2b2a2a;
+}
+
+.readmark-modal-actions .readmark-btn-secondary {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .readmark-modal-actions .readmark-btn-secondary:hover {
   background: #f0f0f0;
+  border-color: #ccc;
 }

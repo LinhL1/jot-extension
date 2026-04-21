@@ -22,7 +22,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["logo1.png", "brain.html", "brain.js"],
+      "resources": ["logo1.png","logo2.png", "brain.html", "brain.js"],
       "matches": ["<all_urls>"]
     }
   ],
