@@ -86,10 +86,10 @@ function refreshHighlightsFromStorage() {
     if (gen !== highlightRefreshGeneration) return;
 
     const highlights = res.readmarks || [];
+    updateHighlightStats(highlights);
 
     if (tabId === 'tags') {
-      updateHighlightStats(highlights);
-      renderTagsView(highlights, list);
+      renderTagsView(highlights, list, null);
       return;
     }
 
@@ -106,7 +106,6 @@ function refreshHighlightsFromStorage() {
     } else {
       renderHighlights(highlights, list);
     }
-    updateHighlightStats(highlights);
   });
 }
 
@@ -1429,25 +1428,11 @@ function setupTabs() {
 
   if (!tabs.length || !list) return;
 
-  const render = (type) => {
-    window.__readmarkSelectedTag = null;
-    safeStorageGet(["readmarks"], (res) => {
-      const highlights = res.readmarks || [];
-
-      if (type === "recent") {
-        renderHighlights(highlights, list);
-      } else if (type === "tags") {
-        renderTagsView(highlights, list);
-      }
-    });
-  };
-
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("active"));
       tab.classList.add("active");
-
-      render(tab.dataset.tab);
+      refreshHighlightsFromStorage();
     });
   });
 }
@@ -1529,15 +1514,9 @@ function renderTagsView(highlights, list, selectedTag = null) {
   list.querySelectorAll('.readmark-tag-item').forEach(item => {
     item.onclick = () => {
       const tag = item.dataset.tag;
-      window.__readmarkSelectedTag = tag;
       renderTagsView(highlights, list, tag);
     };
   });
-
-  window.__readmarkShowTags = () => {
-    window.__readmarkSelectedTag = null;
-    renderTagsView(highlights, list, null);
-  };
 }
 
 function deleteHighlight(index) {
