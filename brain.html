@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jot - Brain View</title>
+    <title>Jot</title>
     <style>
         * {
             margin: 0;
@@ -62,18 +62,34 @@
             gap: 12px;
             align-items: center;
         }
-
-        .btn {
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--accent);
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-size: 13px;
-            font-weight: 500;
+        .header-btn {
+           flex: 1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
             cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.15s ease;
+            background: #fff;
+            color: #111;
             transition: all 0.15s ease;
         }
+
+        .btn {
+           flex: 1;
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.15s ease;
+            background: #fff;
+            color: #111;
+            transition: all 0.15s ease;
+        }
+        
 
         .btn:hover {
             background: #eee;
@@ -85,11 +101,12 @@
             border: 1px solid var(--accent);
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover, .header-btn:hover {
             background: #2b2a2a;
+            color:#fff;
         }
 
-        .btn.active {
+        .btn.active, .header-btn.active{
             background: var(--accent);
             color: var(--bg-secondary);
         }
@@ -235,7 +252,7 @@
             font-size: 14px;
             line-height: 1.5;
             color: #555;
-            border-radius: 0 4px 4px 0;
+            border-radius: 0;
         }
 
         .highlight-tags {
@@ -299,7 +316,7 @@
 
         .modal {
             background: var(--bg-secondary);
-            border-radius: 12px;
+            border-radius: 0px;
             padding: 24px;
             width: 90%;
             max-width: 500px;
@@ -413,9 +430,9 @@
         <img src="logo.png" alt="Jot Logo" class="header-logo">
         <div class="controls">
             <div class="tool-group">
-                <button class="btn" id="draw-mode-btn" title="Draw on canvas (D)">Doodle</button>
-                <button class="btn" id="select-mode-btn" title="Select and drag notes (S)">Move</button>
-                <button class="btn" id="view-mode-btn" title="View mode (V)">View</button>
+                <button class="header-btn" id="draw-mode-btn" title="Draw on canvas (D)">Doodle</button>
+                <button class="header-btn" id="select-mode-btn" title="Select and drag notes (S)">Move</button>
+                <button class="header-btn" id="view-mode-btn" title="View mode (V)">View</button>
                 <div class="color-picker-wrapper">
                     <input type="color" class="color-picker" id="draw-color" value="#111111" title="Drawing color">
                 </div>
@@ -427,10 +444,10 @@
                 </select>
             </div>
             <div class="divider"></div>
-            <button class="btn btn-primary" id="add-note-btn">+ Add Note</button>
-            <button class="btn" id="clear-canvas-btn" title="Clear all drawings">Clear Canvas</button>
-            <button class="btn" id="save-layout-btn" title="Save current layout">Save Layout</button>
-            <button class="btn" id="reset-layout-btn" title="Reset layout to default">Reset View</button>
+            <button class="btn btn-primary" id="add-note-btn">+</button>
+            <button class="header-btn" id="clear-canvas-btn" title="Clear all drawings">Clear Canvas</button>
+            <button class="header-btn" id="save-layout-btn" title="Save current layout">Save Layout</button>
+            <button class="header-btn" id="reset-layout-btn" title="Reset layout to default">Reset View</button>
         </div>
     </header>
 

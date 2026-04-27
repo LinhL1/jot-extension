@@ -117,16 +117,20 @@ function initializeDrawing() {
     drawingCanvas.addEventListener('mousedown', (e) => {
         if (!isDrawMode) return;
         isDrawing = true;
-        const rect = drawingCanvas.getBoundingClientRect();
-        lastX = e.clientX - rect.left;
-        lastY = e.clientY - rect.top;
+        const boardRect = document.getElementById('board').parentElement.getBoundingClientRect();
+        
+        // Position relative to board's parent container
+        lastX = (e.clientX - boardRect.left - boardOffset.x) / scale;
+        lastY = (e.clientY - boardRect.top - boardOffset.y) / scale;
     });
 
     drawingCanvas.addEventListener('mousemove', (e) => {
         if (!isDrawing || !isDrawMode) return;
-        const rect = drawingCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const boardRect = document.getElementById('board').parentElement.getBoundingClientRect();
+        
+        // Position relative to board's parent container
+        const x = (e.clientX - boardRect.left - boardOffset.x) / scale;
+        const y = (e.clientY - boardRect.top - boardOffset.y) / scale;
 
         ctx.strokeStyle = drawColor;
         ctx.lineWidth = drawSize;
@@ -528,7 +532,16 @@ function handleZoom(e) {
 // Update board transform based on offset and scale
 function updateBoardTransform() {
     const board = document.getElementById('board');
+    board.style.transformOrigin = '0 0';
     board.style.transform = `translate(${boardOffset.x}px, ${boardOffset.y}px) scale(${scale})`;
+    
+    // Apply the same transform to the drawing canvas
+    const drawingCanvas = document.getElementById('drawing-canvas');
+    if (drawingCanvas) {
+        drawingCanvas.style.transformOrigin = '0 0';
+        drawingCanvas.style.transform = `translate(${boardOffset.x}px, ${boardOffset.y}px) scale(${scale})`;
+    }
+    
     drawConnections();
 }
 

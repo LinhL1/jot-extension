@@ -196,6 +196,52 @@ function injectWidget(initialStorage) {
        WIDGET SHELL
     =============================== */
 
+ 
+    .readmark-content {
+      padding: 16px 24px 24px 24px;
+      background: #f5f3f0;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px; 
+    }
+
+   
+
+
+
+    /* ===============================
+      TABS CONTAINER
+    =============================== */
+
+    .readmark-tabs-container {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 0; /* Remove bottom margin */
+      align-items: center;
+      padding: 8px 0; /* Add some vertical padding */
+      border-bottom: 1px solid #e5e5e5; /* Visual separation */
+    }
+
+    /* ===============================
+      HIGHLIGHTS GRID 
+    =============================== */
+
+    .readmark-highlights-grid {
+      padding: 16px 0; /* Adjusted padding */
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+      flex: 1; /* Allow grid to take available space */
+      overflow-y: auto; /* Ensure scrolling works */
+    }
+
+    /* ===============================
+      WIDGET SHELL 
+    =============================== */
+
     .readmark-widget {
       --readmark-panel-width: 480px;
       width: var(--readmark-panel-width);
@@ -208,16 +254,13 @@ function injectWidget(initialStorage) {
       transition: all 0.3s ease;
       display: flex;
       flex-direction: column;
-    }
-
-    .readmark-widget.readmark-minimized {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
+      height: auto; /* Ensure height is auto */
+      min-height: 400px; /* Minimum height */
+      
     }
 
     /* ===============================
-       PANEL
+      PANEL 
     =============================== */
 
     .readmark-panel {
@@ -225,44 +268,11 @@ function injectWidget(initialStorage) {
       flex-direction: column;
       max-height: min(90vh, 700px);
       transition: opacity 0.25s ease, transform 0.25s ease;
-    }
-
-    .readmark-widget.readmark-minimized .readmark-panel {
-      opacity: 0;
-      pointer-events: none;
+      flex: 1; /* Make panel take available space */
     }
 
     /* ===============================
-       FLOATING BUTTON
-    =============================== */
-
-    .readmark-fab {
-      position: absolute;
-      inset: 0;
-      margin: auto;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: #111;
-      color: #f6f4f0;
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.2s ease;
-      cursor: pointer;
-    }
-
-    .readmark-fab:hover {
-      background: #d8d486;
-    }
-
-    .readmark-widget.readmark-minimized .readmark-fab {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    /* ===============================
-       HEADER
+      HEADER
     =============================== */
 
     .readmark-header {
@@ -273,8 +283,15 @@ function injectWidget(initialStorage) {
       align-items: center;
       flex-shrink: 0;
       border-bottom: 1px solid #1a1a1a;
+      margin: 0; /* Ensure no margin */
     }
 
+    .readmark-header-logo {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
     .readmark-title {
       color: #fff;
       font-weight: 700;
@@ -299,15 +316,16 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-       TAGLINE
+      TAGLINE 
     =============================== */
 
     .readmark-tagline {
       color: #666;
       font-size: 13px;
       font-style: italic;
-      padding: 12px 20px 0;
-      margin-bottom: 12px;
+      padding: 24px 20px 16px 32px; /* Even more left padding */
+      margin: 0;
+      text-align: left;
     }
 
     /* ===============================
@@ -341,10 +359,10 @@ function injectWidget(initialStorage) {
     =============================== */
 
     .readmark-search-container {
-      margin-bottom: 16px;
-      position: relative;
-      margin-top: 20px;
-    }
+        position: relative;
+        margin: 0; /* Remove margins, flexbox gap handles spacing */
+        padding: 0 20px; /* Add horizontal padding */
+      }
 
     .readmark-search-input {
       width: 90%;
@@ -446,7 +464,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-       HIGHLIGHTS GRID
+       HIGHLIGHTS 
     =============================== */
 
     .readmark-highlights-grid {
@@ -604,161 +622,278 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-       MODAL
+       HIGHLIGHT MODAL
     =============================== */
 
-    .readmark-modal-overlay {
+    .jot-modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.35);
+      background: rgba(0,0,0,0.4);
       z-index: 2147483647;
       display: flex;
       justify-content: center;
       align-items: center;
       pointer-events: auto;
+      backdrop-filter: blur(2px);
     }
 
-    .readmark-modal {
-      background: #f5f3f0;
+    .jot-modal {
+      background: #f6f4f0;
       border: 1px solid #e5e5e5;
       border-radius: 0;
-      padding: 18px;
-      max-width: 450px;
+      padding: 28px;
+      max-width: 500px;
       width: 90%;
       position: relative;
       z-index: 2147483648;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+      animation: jotSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .readmark-modal-title {
+    @keyframes jotSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .jot-modal-title {
       font-weight: 600;
-      margin-bottom: 10px;
-      font-size: 14px;
+      margin-bottom: 18px;
+      font-size: 16px;
       color: #111;
+      letter-spacing: -0.3px;
     }
 
-    .readmark-modal-text {
-      font-size: 13px;
+    .jot-modal-text {
+      font-size: 14px;
       background: #fff;
       border-left: 3px solid #111;
-      padding: 12px;
-      margin-bottom: 16px;
-      line-height: 1.5;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      line-height: 1.6;
       word-wrap: break-word;
       word-break: break-word;
       white-space: pre-wrap;
       overflow-wrap: break-word;
+      color: #111;
+      font-style: italic;
     }
 
-    .readmark-form-input,
-    .readmark-form-textarea {
-      width: 100%;
-      border: 1px solid #ddd;
-      padding: 10px;
-      border-radius: 0;
-      font-family: inherit;
+    .jot-form-group {
+      margin-bottom: 18px;
+    }
+
+    .jot-form-label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .jot-form-input,
+    .jot-form-textarea {
+      width: 95%;
+      border: 1px solid #e5e5e5;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 13px;
       color: #111;
+      background: #fff;
+      transition: all 0.15s ease;
     }
 
-    .readmark-form-input::placeholder,
-    .readmark-form-textarea::placeholder {
+    .jot-form-input::placeholder,
+    .jot-form-textarea::placeholder {
       color: #bbb;
     }
 
-    .readmark-form-textarea {
+    .jot-form-textarea {
       resize: vertical;
-      min-height: 60px;
+      min-height: 80px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .readmark-form-input:focus,
-    .readmark-form-textarea:focus {
+    .jot-form-input:focus,
+    .jot-form-textarea:focus {
       outline: none;
-      border-color: #999;
-      box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+      border-color: #111;
+      box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08);
     }
 
-    .readmark-modal-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .readmark-modal-actions button {
-      flex: 1;
-      padding: 10px;
-      border-radius: 0;
-      border: 1px solid #ddd;
-      cursor: pointer;
-      font-weight: 500;
-      font-size: 13px;
-      transition: all 0.2s ease;
-    }
-
-    .readmark-modal-actions .readmark-btn-primary {
-      background: #111;
-      color: #f6f4f0;
-      border: none;
-    }
-
-    .readmark-modal-actions .readmark-btn-primary:hover {
-      background: #222;
-    }
-
-    .readmark-modal-actions .readmark-btn-secondary:hover {
-      background: #f0f0f0;
-    }
-
-    /* ===============================
-       TAG AUTOCOMPLETE
-    =============================== */
-
-    .readmark-tags-input-container {
+    .jot-tags-input-container {
       position: relative;
       width: 100%;
     }
 
-    .readmark-form-input.readmark-tags-input {
-      padding-right: 10px;
-    }
-
-    .readmark-tags-dropdown {
+    .jot-tags-dropdown {
       position: absolute;
       top: 100%;
       left: 0;
       right: 0;
       background: #fff;
-      border: 1px solid #ddd;
+      border: 1px solid #e5e5e5;
       border-top: none;
       max-height: 150px;
       overflow-y: auto;
       z-index: 1000003;
       display: none;
+      margin-top: -1px;
     }
 
-    .readmark-tags-dropdown.active {
+    .jot-tags-dropdown.active {
       display: block;
     }
 
-    .readmark-tags-dropdown-item {
+    .jot-tags-dropdown-item {
       padding: 10px 12px;
       font-size: 13px;
       color: #111;
       cursor: pointer;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid #f5f5f5;
       transition: background 0.15s ease;
     }
 
-    .readmark-tags-dropdown-item:hover,
-    .readmark-tags-dropdown-item.highlighted {
-      background: #f0f0f0;
+    .jot-tags-dropdown-item:hover,
+    .jot-tags-dropdown-item.highlighted {
+      background: #f9f9f9;
     }
 
-    .readmark-tags-dropdown-item:last-child {
+    .jot-tags-dropdown-item:last-child {
       border-bottom: none;
     }
+
+    .jot-modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .jot-modal-actions button {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 1px solid #e5e5e5;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      transition: all 0.15s ease;
+      background: #fff;
+      color: #111;
+    }
+
+    .jot-modal-actions .jot-btn-primary {
+      background: #111;
+      color: #f6f4f0;
+      border: 1px solid #111;
+    }
+
+    .jot-modal-actions .jot-btn-primary:hover {
+      background: #2b2a2a;
+      border-color: #2b2a2a;
+    }
+
+    .jot-modal-actions .jot-btn-secondary:hover {
+      background: #f9f9f9;
+      border-color: #ddd;
+    }
+
+    .jot-modal-title {
+      cursor: grab;
+      user-select: none;
+    }
+
+    .jot-modal-title:active {
+      cursor: grabbing;
+    }
+
+        /* Ensure the highlights list is properly scrollable */
+    .readmark-highlights-grid {
+      max-height: none; /* Remove any max-height constraints */
+    }
+
+    /* Fix for the content area scroll */
+    .readmark-content {
+      min-height: 0; /* Important for flexbox scrolling */
+    }
+
+    /* ===============================
+      MINIMIZED STATE 
+      =============================== */
+    .readmark-widget.readmark-minimized {
+      width: 24px !important;
+      height: 24px !important;
+      min-height: 24px !important;
+      border-radius: 50% !important;
+      overflow: visible !important;
+      background: #2a2a2a;
+      border: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      transform: scale(1);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+    }
+
+    .readmark-widget.readmark-minimized:hover {
+      transform: scale(1.15);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+      background: #3a3a3a;
+    }
+
+    .readmark-widget.readmark-minimized .readmark-panel {
+      display: none !important;
+    }
+
+    /* Keep the FAB for functionality but make it invisible */
+    .readmark-widget.readmark-minimized .readmark-fab {
+      display: flex !important;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      margin: 0 !important;
+      opacity: 0; /* Make invisible but still clickable */
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* Ensure the FAB is hidden by default when not minimized */
+    .readmark-fab {
+      display: none !important;
+    }
+
+    /* Animation for widget expansion */
+    @keyframes expandWidget {
+      0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .readmark-widget:not(.readmark-minimized) {
+      animation: expandWidget 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+
   `;
   document.head.appendChild(style);
 
@@ -766,9 +901,9 @@ function injectWidget(initialStorage) {
     <div class="readmark-widget">
       <div class="readmark-panel">
         <div class="readmark-header">
-          <div class="readmark-title">Jot.</div>
-          <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
-        </div>
+        <img src="${chrome.runtime.getURL('/logo2.png')}" class="readmark-header-logo" alt="Jot" />
+        <button type="button" class="readmark-toggle" data-action="toggle" title="Minimize" aria-expanded="true">−</button>
+      </div>
 
         <div class="readmark-content">
           <div class="readmark-tagline">Your second brain.</div>
@@ -991,11 +1126,11 @@ function setupWidgetEvents(initialStorage) {
 
 function setupTagAutocomplete(tagsInput, availableTags) {
   const container = tagsInput.parentElement;
-  let dropdown = container.querySelector('.readmark-tags-dropdown');
+  let dropdown = container.querySelector('.jot-tags-dropdown');
   
   if (!dropdown) {
     dropdown = document.createElement('div');
-    dropdown.className = 'readmark-tags-dropdown';
+    dropdown.className = 'jot-tags-dropdown';
     container.appendChild(dropdown);
   }
 
@@ -1021,7 +1156,7 @@ function setupTagAutocomplete(tagsInput, availableTags) {
 
     dropdown.innerHTML = matches
       .map((tag, idx) => `
-        <div class="readmark-tags-dropdown-item" data-index="${idx}">
+        <div class="jot-tags-dropdown-item" data-index="${idx}">
           #${tag}
         </div>
       `)
@@ -1030,7 +1165,7 @@ function setupTagAutocomplete(tagsInput, availableTags) {
     dropdown.classList.add('active');
     highlightedIndex = -1;
 
-    dropdown.querySelectorAll('.readmark-tags-dropdown-item').forEach((item, idx) => {
+    dropdown.querySelectorAll('.jot-tags-dropdown-item').forEach((item, idx) => {
       item.addEventListener('click', () => {
         selectTag(tag = item.textContent.trim().substring(1));
       });
@@ -1055,7 +1190,7 @@ function setupTagAutocomplete(tagsInput, availableTags) {
   tagsInput.addEventListener('keydown', (e) => {
     if (!dropdown.classList.contains('active')) return;
 
-    const items = dropdown.querySelectorAll('.readmark-tags-dropdown-item');
+    const items = dropdown.querySelectorAll('.jot-tags-dropdown-item');
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -1088,7 +1223,7 @@ function showSaveDialog(selectedText) {
   if (!trimmed) return;
 
   // Remove existing modal if present
-  const existing = document.getElementById('readmark-modal-overlay');
+  const existing = document.getElementById('jot-modal-overlay');
   if (existing) existing.remove();
 
   const selection = window.getSelection();
@@ -1106,31 +1241,30 @@ function showSaveDialog(selectedText) {
   }
 
   const overlay = document.createElement('div');
-  overlay.id = 'readmark-modal-overlay';
-  overlay.className = 'readmark-modal-overlay';
+  overlay.id = 'jot-modal-overlay';
+  overlay.className = 'jot-modal-overlay';
 
   overlay.innerHTML = `
-    <div class="readmark-modal">
-      <div class="readmark-modal-title">Save Highlight</div>
+    <div class="jot-modal">
+      <div class="jot-modal-title">Save Highlight</div>
 
-      <div class="readmark-modal-text">"${trimmed.substring(0, 300)}${trimmed.length > 300 ? '...' : ''}"</div>
+      <div class="jot-modal-text">"${trimmed.substring(0, 300)}${trimmed.length > 300 ? '...' : ''}"</div>
 
-      <div class="readmark-form-group">
-        <label class="readmark-form-label">Your Notes (optional)</label>
-        <textarea class="readmark-form-textarea" id="readmark-note-input" placeholder="Add your thoughts or context..."></textarea>
+      <div class="jot-form-group">
+        <label class="jot-form-label">Your Notes (optional)</label>
+        <textarea class="jot-form-textarea" id="jot-note-input" placeholder="Add your thoughts or context..."></textarea>
       </div>
 
-      <div class="readmark-form-group">
-        <label class="readmark-form-label">Tags</label>
-        <div class="readmark-tags-input-container">
-          <input class="readmark-form-input readmark-tags-input" id="readmark-tags-input" placeholder="e.g. learning, idea (separate with commas)" />
-          <div class="readmark-tags-dropdown"></div>
+      <div class="jot-form-group">
+        <label class="jot-form-label">Tags</label>
+        <div class="jot-tags-input-container">
+          <input class="jot-form-input" id="jot-tags-input" placeholder="e.g. learning, idea (separate with commas)" />
         </div>
       </div>
 
-      <div class="readmark-modal-actions">
-        <button class="readmark-btn readmark-btn-secondary" id="readmark-cancel">Cancel</button>
-        <button class="readmark-btn readmark-btn-primary" id="readmark-save">Save</button>
+      <div class="jot-modal-actions">
+        <button class="jot-btn-secondary" id="jot-cancel">Cancel</button>
+        <button class="jot-btn-primary" id="jot-save">Save</button>
       </div>
     </div>
   `;
@@ -1139,14 +1273,14 @@ function showSaveDialog(selectedText) {
   const htmlElement = document.documentElement;
   htmlElement.appendChild(overlay);
 
-  const modal = overlay.querySelector(".readmark-modal");
-  const title = overlay.querySelector(".readmark-modal-title");
+  const modal = overlay.querySelector(".jot-modal");
+  const title = overlay.querySelector(".jot-modal-title");
 
   // Style overlay to be truly on top
   overlay.style.cssText = `
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.35);
+    background: rgba(0,0,0,0.4);
     z-index: 2147483647;
     display: flex;
     justify-content: center;
@@ -1162,7 +1296,7 @@ function showSaveDialog(selectedText) {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: 450px;
+    max-width: 500px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
@@ -1187,7 +1321,7 @@ function showSaveDialog(selectedText) {
     offsetY = e.clientY - rect.top;
 
     modal.style.position = "fixed";
-    modal.style.zIndex = 2147483648;
+    modal.style.zIndex = "2147483648";
     modal.style.transform = "none";
 
     document.body.style.userSelect = "none";
@@ -1221,7 +1355,7 @@ function showSaveDialog(selectedText) {
       (h.tags || []).forEach(t => allTags.add(t));
     });
     const availableTags = Array.from(allTags).sort();
-    const tagsInput = document.getElementById('readmark-tags-input');
+    const tagsInput = document.getElementById('jot-tags-input');
     if (tagsInput) {
       setupTagAutocomplete(tagsInput, availableTags);
     }
@@ -1230,10 +1364,10 @@ function showSaveDialog(selectedText) {
   /* =========================
      SAVE LOGIC
   ========================= */
-  document.getElementById("readmark-save").onclick = () => {
-    const note = document.getElementById("readmark-note-input").value.trim();
+  document.getElementById("jot-save").onclick = () => {
+    const note = document.getElementById("jot-note-input").value.trim();
     const tags = document
-      .getElementById("readmark-tags-input")
+      .getElementById("jot-tags-input")
       .value.split(",")
       .map(t => t.trim())
       .filter(Boolean);
@@ -1263,8 +1397,9 @@ function showSaveDialog(selectedText) {
           background: #111;
           color: #fff;
           padding: 10px 14px;
-          border-radius: 8px;
+          border-radius: 6px;
           z-index: 1000000;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         `;
 
         document.body.appendChild(toast);
@@ -1273,7 +1408,7 @@ function showSaveDialog(selectedText) {
     });
   };
 
-  document.getElementById("readmark-cancel").onclick = () => {
+  document.getElementById("jot-cancel").onclick = () => {
     overlay.remove();
   };
 
@@ -1282,7 +1417,7 @@ function showSaveDialog(selectedText) {
   };
 
   setTimeout(() => {
-    const noteInput = document.getElementById("readmark-note-input");
+    const noteInput = document.getElementById("jot-note-input");
     if (noteInput) noteInput.focus();
   }, 0);
 }
@@ -1566,7 +1701,7 @@ function registerReadmarkContentListeners(syncWidgetFromStorage) {
     const focusNode = sel.focusNode;
     const inOurUi = (n) => {
       const el = n && n.nodeType === Node.TEXT_NODE ? n.parentElement : n;
-      return !!(el && el.closest && (el.closest('#readmark-widget-container') || el.closest('#readmark-modal-overlay')));
+      return !!(el && el.closest && (el.closest('#readmark-widget-container') || el.closest('#jot-modal-overlay')));
     };
     if (anchor && focusNode && inOurUi(anchor) && inOurUi(focusNode)) return;
 
