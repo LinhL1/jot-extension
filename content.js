@@ -212,7 +212,7 @@ function injectWidget(initialStorage) {
 
 
     /* ===============================
-      TABS CONTAINER - FIXED
+      TABS CONTAINER
     =============================== */
 
     .readmark-tabs-container {
@@ -225,7 +225,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-      HIGHLIGHTS GRID - FIXED
+      HIGHLIGHTS GRID 
     =============================== */
 
     .readmark-highlights-grid {
@@ -239,7 +239,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-      WIDGET SHELL - ENSURE PROPER SIZING
+      WIDGET SHELL 
     =============================== */
 
     .readmark-widget {
@@ -260,7 +260,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-      PANEL - FIXED
+      PANEL 
     =============================== */
 
     .readmark-panel {
@@ -272,7 +272,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-      HEADER - FIXED
+      HEADER
     =============================== */
 
     .readmark-header {
@@ -316,7 +316,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-      TAGLINE - FIXED
+      TAGLINE 
     =============================== */
 
     .readmark-tagline {
@@ -464,7 +464,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-       HIGHLIGHTS GRID
+       HIGHLIGHTS 
     =============================== */
 
     .readmark-highlights-grid {
@@ -622,7 +622,7 @@ function injectWidget(initialStorage) {
     }
 
     /* ===============================
-       HIGHLIGHT MODAL - JOT STYLE
+       HIGHLIGHT MODAL
     =============================== */
 
     .jot-modal-overlay {
@@ -827,6 +827,72 @@ function injectWidget(initialStorage) {
     .readmark-content {
       min-height: 0; /* Important for flexbox scrolling */
     }
+
+    /* ===============================
+      MINIMIZED STATE 
+      =============================== */
+    .readmark-widget.readmark-minimized {
+      width: 24px !important;
+      height: 24px !important;
+      min-height: 24px !important;
+      border-radius: 50% !important;
+      overflow: visible !important;
+      background: #2a2a2a;
+      border: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      transform: scale(1);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+    }
+
+    .readmark-widget.readmark-minimized:hover {
+      transform: scale(1.15);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+      background: #3a3a3a;
+    }
+
+    .readmark-widget.readmark-minimized .readmark-panel {
+      display: none !important;
+    }
+
+    /* Keep the FAB for functionality but make it invisible */
+    .readmark-widget.readmark-minimized .readmark-fab {
+      display: flex !important;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      margin: 0 !important;
+      opacity: 0; /* Make invisible but still clickable */
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* Ensure the FAB is hidden by default when not minimized */
+    .readmark-fab {
+      display: none !important;
+    }
+
+    /* Animation for widget expansion */
+    @keyframes expandWidget {
+      0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .readmark-widget:not(.readmark-minimized) {
+      animation: expandWidget 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
 
   `;
   document.head.appendChild(style);
