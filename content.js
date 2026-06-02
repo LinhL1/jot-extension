@@ -1215,6 +1215,19 @@ function setupTagAutocomplete(tagsInput, availableTags) {
   }
 }
 
+// FIX: Generate a stable unique ID for each highlight at save time
+function generateHighlightId(text) {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const textHash = Math.abs(hash).toString(16).substring(0, 8);
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  return `note_${textHash}_${Date.now()}_${randomSuffix}`;
+}
+
 function showSaveDialog(selectedText) {
   if (!readmarkEnabled) return;
   if (!extensionContextValid()) return;
@@ -1361,7 +1374,7 @@ function showSaveDialog(selectedText) {
   });
 
   /* =========================
-     SAVE LOGIC
+     SAVE LOGIC — FIX: assign id at creation time
   ========================= */
   document.getElementById("jot-save").onclick = () => {
     const note = document.getElementById("jot-note-input").value.trim();
@@ -1374,7 +1387,10 @@ function showSaveDialog(selectedText) {
     safeStorageGet(["readmarks"], (res) => {
       const data = res.readmarks || [];
 
+      // FIX: Every highlight gets a stable unique id right here at save time.
+      // brain.js reads this id to place and track the card on the board.
       data.push({
+        id: generateHighlightId(trimmed),   // ← THE FIX
         text: trimmed,
         note,
         tags,

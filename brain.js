@@ -1,3 +1,5 @@
+//Main Brain - board view 
+
 // Global variables
 let notes = [];
 let connections = [];
@@ -42,26 +44,20 @@ function loadData() {
         }
         
         // Transform highlights into notes format - Use saved positions!
-        // CRITICAL: Generate truly unique, stable IDs for each note
         notes = highlights.map((h, index) => {
-            // Use existing ID if it's a proper string/number that's stable
             let noteId = h.id;
             
-            // If no ID exists, create a unique one based on MULTIPLE factors
-            // This ensures even identical notes from same site get unique IDs
             if (!noteId) {
-                // Combine text hash + timestamp + index for absolute uniqueness
                 const textHash = hashString(h.text).substring(0, 8);
                 const timeStamp = h.timestamp ? new Date(h.timestamp).getTime() : Date.now();
                 const randomSuffix = Math.random().toString(36).substring(2, 8);
                 noteId = `note_${textHash}_${timeStamp}_${index}_${randomSuffix}`;
             }
             
-            // Convert to string for consistency across the app
             noteId = String(noteId);
             
             return {
-                id: noteId,  // Keep as string consistently
+                id: noteId,
                 text: h.text,
                 note: h.note,
                 tags: h.tags || [],
@@ -81,6 +77,46 @@ function loadData() {
         
         // Initialize the app
         init();
+
+        // FIX: Listen for storage changes so new highlights saved from any tab
+        // appear on the board immediately without needing a page reload.
+        chrome.storage.onChanged.addListener(function(changes, area) {
+            if (area !== 'local') return;
+            if (!changes.readmarks && !changes.readmarkConnections) return;
+
+            chrome.storage.local.get(['readmarks', 'readmarkConnections'], function(result) {
+                const highlights = result.readmarks || [];
+                connections = result.readmarkConnections || [];
+
+                // Build a set of IDs currently on the board
+                const existingIds = new Set(notes.map(n => String(n.id)));
+
+                // Add any new highlights that aren't on the board yet
+                highlights.forEach((h, index) => {
+                    const hId = String(h.id || '');
+                    if (!hId || existingIds.has(hId)) return; // already on board
+
+                    const position = getNonOverlappingPosition();
+                    notes.push({
+                        id: hId,
+                        text: h.text,
+                        note: h.note,
+                        tags: h.tags || [],
+                        url: h.url,
+                        timestamp: h.timestamp,
+                        x: typeof h.x === 'number' ? h.x : position.x,
+                        y: typeof h.y === 'number' ? h.y : position.y
+                    });
+                });
+
+                // Remove notes that were deleted from storage
+                const storageIds = new Set(highlights.map(h => String(h.id || '')));
+                notes = notes.filter(n => storageIds.has(String(n.id)));
+
+                renderNotes();
+                updateEmptyState();
+            });
+        });
     });
 }
 
@@ -111,8 +147,6 @@ function migrateNotesToUniqueIds() {
         
         // Check if any notes lack proper unique IDs (old format)
         const needsMigration = highlights.some(h => {
-            // Old format: just a timestamp or text+index
-            // New format: contains "note_" prefix
             return !h.id || (typeof h.id === 'number') || (String(h.id).length < 10);
         });
         
@@ -182,11 +216,10 @@ function saveToStorage() {
         tags: note.tags,
         url: note.url,
         timestamp: note.timestamp,
-        x: note.x, // Save the actual positions
-        y: note.y  // Save the actual positions
+        x: note.x,
+        y: note.y
     }));
     
-    // Log positions being saved
     console.log('Saving note positions:', highlights.map(n => ({ id: n.id, x: n.x, y: n.y })));
     
     // Save board settings
@@ -229,7 +262,6 @@ function initializeDrawing() {
         isDrawing = true;
         const boardRect = document.getElementById('board').parentElement.getBoundingClientRect();
         
-        // Position relative to board's parent container
         lastX = (e.clientX - boardRect.left - boardOffset.x) / scale;
         lastY = (e.clientY - boardRect.top - boardOffset.y) / scale;
     });
@@ -238,7 +270,6 @@ function initializeDrawing() {
         if (!isDrawing || !isDrawMode) return;
         const boardRect = document.getElementById('board').parentElement.getBoundingClientRect();
         
-        // Position relative to board's parent container
         const x = (e.clientX - boardRect.left - boardOffset.x) / scale;
         const y = (e.clientY - boardRect.top - boardOffset.y) / scale;
 
@@ -267,7 +298,6 @@ function initializeDrawing() {
 
     window.addEventListener('resize', resizeDrawingCanvas);
 
-    // Set up drawing controls
     setupDrawingControls();
 }
 
@@ -378,7 +408,6 @@ function setupDrawingControls() {
 
 // ==================== INITIALIZATION ====================
 
-// Initialize the app
 function init() {
     resizeCanvas();
     renderNotes();
@@ -392,7 +421,6 @@ function init() {
         viewModeBtn.click();
     }
     
-    // Other event listeners
     window.addEventListener('resize', resizeCanvas);
     document.getElementById('add-note-btn').addEventListener('click', showAddNoteModal);
     document.getElementById('save-layout-btn').addEventListener('click', saveLayout);
@@ -407,7 +435,6 @@ function init() {
     // Zoom functionality
     board.addEventListener('wheel', handleZoom, { passive: false });
     
-    // Draw initial connections
     drawConnections();
 }
 
@@ -428,12 +455,10 @@ function getNonOverlappingPosition() {
     const noteWidth = 250;
     const noteHeight = 200;
     
-    // If there are no notes yet, start in a reasonable position
     if (notes.length === 0) {
         return { x: 50, y: 50 };
     }
     
-    // Try multiple positions to find a non-overlapping one
     for (let attempt = 0; attempt < 50; attempt++) {
         const x = Math.random() * 1000;
         const y = Math.random() * 800;
@@ -453,7 +478,6 @@ function getNonOverlappingPosition() {
         }
     }
     
-    // If we can't find a non-overlapping position, use a grid position
     const gridSize = Math.ceil(Math.sqrt(notes.length + 1));
     const gridX = (notes.length % gridSize) * (noteWidth + padding);
     const gridY = Math.floor(notes.length / gridSize) * (noteHeight + padding);
@@ -473,7 +497,6 @@ function renderNotes() {
         card.className = 'highlight-card';
         card.style.left = `${note.x}px`;
         card.style.top = `${note.y}px`;
-        // Store ID as data attribute - CRITICAL: use String for consistency
         card.setAttribute('data-id', String(note.id));
         
         card.innerHTML = `
@@ -494,13 +517,11 @@ function renderNotes() {
             </div>
         `;
         
-        // Add drag functionality ONLY (no button click handlers here)
         card.addEventListener('mousedown', startDragging);
         
         notesContainer.appendChild(card);
     });
     
-    // Save positions after rendering
     saveToStorage();
     drawConnections();
 }
@@ -508,49 +529,39 @@ function renderNotes() {
 // Start dragging a note
 function startDragging(e) {
     if (e.target.classList.contains('card-btn')) return;
-    if (isDrawMode || isViewMode) return; // Don't drag notes in draw or view mode
+    if (isDrawMode || isViewMode) return;
     
     activeCard = e.currentTarget;
     isDragging = true;
     activeCard.classList.add('dragging');
     
-    // Get position relative to the card itself
     const rect = activeCard.getBoundingClientRect();
-    const container = document.querySelector('.canvas-container');
-    const containerRect = container.getBoundingClientRect();
     
-    // Calculate click offset within the card
     dragOffset.x = e.clientX - rect.left;
     dragOffset.y = e.clientY - rect.top;
     
-    e.stopPropagation(); // Prevent triggering board drag
+    e.stopPropagation();
 }
 
 // Handle dragging
 function onDrag(e) {
     if (!isDragging || !activeCard) return;
     
-    // Get the container (canvas) position
     const container = document.querySelector('.canvas-container');
     const containerRect = container.getBoundingClientRect();
     
-    // Calculate position relative to viewport
     let mouseX = e.clientX - containerRect.left;
     let mouseY = e.clientY - containerRect.top;
     
-    // Account for board transform (scale and offset)
-    // Reverse the board transformation to get coordinates in board space
     let boardX = (mouseX - boardOffset.x) / scale;
     let boardY = (mouseY - boardOffset.y) / scale;
     
-    // Apply drag offset
     let x = boardX - dragOffset.x;
     let y = boardY - dragOffset.y;
     
     activeCard.style.left = `${x}px`;
     activeCard.style.top = `${y}px`;
     
-    // Update the note's position in our data
     const noteId = activeCard.getAttribute('data-id');
     const note = notes.find(n => String(n.id) === String(noteId));
     if (note) {
@@ -569,7 +580,6 @@ function stopDragging() {
     isDragging = false;
     activeCard = null;
     
-    // Save the new positions
     saveToStorage();
 }
 
@@ -580,7 +590,6 @@ function startBoardDrag(e) {
     
     isDraggingBoard = true;
     
-    // Store the current board offset when starting drag
     dragOffset.x = e.clientX - boardOffset.x;
     dragOffset.y = e.clientY - boardOffset.y;
     
@@ -591,7 +600,6 @@ function startBoardDrag(e) {
 function onBoardDrag(e) {
     if (!isDraggingBoard) return;
     
-    // Simple, direct calculation for smooth panning
     boardOffset.x = e.clientX - dragOffset.x;
     boardOffset.y = e.clientY - dragOffset.y;
     
@@ -615,7 +623,6 @@ function handleZoom(e) {
     const wheel = e.deltaY < 0 ? 1 : -1;
     const newScale = scale * (1 + wheel * zoomIntensity);
     
-    // Limit zoom between 0.3 and 3
     scale = Math.max(0.3, Math.min(3, newScale));
     
     updateBoardTransform();
@@ -628,7 +635,6 @@ function updateBoardTransform() {
     board.style.transformOrigin = '0 0';
     board.style.transform = `translate(${boardOffset.x}px, ${boardOffset.y}px) scale(${scale})`;
     
-    // Apply the same transform to the drawing canvas
     const drawingCanvas = document.getElementById('drawing-canvas');
     if (drawingCanvas) {
         drawingCanvas.style.transformOrigin = '0 0';
@@ -668,7 +674,6 @@ function drawConnections() {
         ctx.lineWidth = 2;
         ctx.stroke();
         
-        // Draw arrowhead
         const angle = Math.atan2(toY - fromY, toX - fromX);
         const headLength = 10;
         
@@ -705,25 +710,20 @@ function hideNoteModal() {
 
 // Edit note
 function editNote(noteId) {
-    // CRITICAL: Convert to string for consistent lookup
     noteId = String(noteId);
     console.log('Looking for note with ID:', noteId);
-    console.log('Available notes:', notes.map(n => ({ id: n.id, text: n.text.substring(0, 30) })));
     
     const note = notes.find(n => String(n.id) === noteId);
     if (!note) {
         console.error('Note not found! ID:', noteId);
-        console.error('All note IDs:', notes.map(n => String(n.id)));
         return;
     }
-    
-    console.log('Found note, editing:', note.text.substring(0, 30));
     
     document.getElementById('modal-title').textContent = 'Edit Note';
     document.getElementById('note-text').value = note.text;
     document.getElementById('note-comment').value = note.note || '';
     document.getElementById('note-tags').value = note.tags ? note.tags.join(', ') : '';
-    currentEditId = noteId;  // Store as string
+    currentEditId = noteId;
     document.getElementById('note-modal').style.display = 'flex';
 }
 
@@ -742,8 +742,7 @@ function saveNote() {
     }
     
     if (currentEditId) {
-        // Update existing note
-        const noteId = String(currentEditId);  // Ensure string
+        const noteId = String(currentEditId);
         const existingNote = notes.find(n => String(n.id) === noteId);
         if (existingNote) {
             existingNote.text = text;
@@ -753,7 +752,6 @@ function saveNote() {
         }
         currentEditId = null;
     } else {
-        // Create new note at a non-overlapping position
         const position = getNonOverlappingPosition();
         const newNote = {
             id: `note_${String(Date.now())}_${Math.random().toString(36).substring(2, 8)}`,
@@ -770,12 +768,11 @@ function saveNote() {
     renderNotes();
     updateEmptyState();
     hideNoteModal();
-    saveToStorage(); // Save the changes
+    saveToStorage();
 }
 
 // Delete note
 function deleteNote(noteId) {
-    // CRITICAL: Convert to string for consistent comparison
     noteId = String(noteId);
     
     if (!confirm('Are you sure you want to delete this note?')) return;
@@ -789,7 +786,7 @@ function deleteNote(noteId) {
     
     renderNotes();
     updateEmptyState();
-    saveToStorage(); // Save the changes
+    saveToStorage();
 }
 
 // Save layout
@@ -802,12 +799,10 @@ function saveLayout() {
 function resetLayout() {
     if (!confirm('Are you sure you want to reset the layout? This will rearrange all notes.')) return;
     
-    // Reset board position and zoom
     boardOffset = { x: 0, y: 0 };
     scale = 1;
     updateBoardTransform();
     
-    // Spread out notes in a grid
     const noteWidth = 250;
     const noteHeight = 200;
     const padding = 20;
@@ -839,25 +834,21 @@ function escapeHtml(text) {
 
 // Start loading data when the page is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Set up event delegation on the BOARD element (which doesn't get cleared)
     const board = document.getElementById('board');
     board.addEventListener('click', function(e) {
         if (e.target.classList.contains('edit-btn')) {
             e.stopPropagation();
-            // CRITICAL: Get ID from data attribute and convert to string
             const noteId = String(e.target.getAttribute('data-id'));
             console.log('Edit clicked for note ID:', noteId);
             editNote(noteId);
         } else if (e.target.classList.contains('delete-btn')) {
             e.stopPropagation();
-            // CRITICAL: Get ID from data attribute and convert to string
             const noteId = String(e.target.getAttribute('data-id'));
             console.log('Delete clicked for note ID:', noteId);
             deleteNote(noteId);
         }
     });
     
-    // Now load the data
     loadData();
 });
 
