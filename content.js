@@ -474,11 +474,6 @@ function injectWidget(initialStorage) {
       align-items: start;
     }
 
-    .readmark-tags-view .readmark-highlights-grid {
-      padding: 12px 20px;
-      gap: 12px;
-    }
-
     .readmark-highlight-item {
       background: #f8f8f8;
       border: 1px solid #222220;
@@ -573,12 +568,6 @@ function injectWidget(initialStorage) {
       color: #999;
     }
 
-    .readmark-tags-view {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
     .readmark-tags-back {
       padding: 0 4px;
     }
@@ -637,45 +626,45 @@ function injectWidget(initialStorage) {
     }
 
     .jot-modal {
-      background: #f6f4f0;
+      background: #fff;
       border: 1px solid #e5e5e5;
       border-radius: 0;
-      padding: 28px;
+      padding: 24px;
       max-width: 500px;
       width: 90%;
       position: relative;
       z-index: 2147483648;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
       animation: jotSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     @keyframes jotSlideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .jot-modal-title {
       font-weight: 600;
-      margin-bottom: 18px;
-      font-size: 16px;
+      margin-bottom: 16px;
+      font-size: 18px;
       color: #111;
       letter-spacing: -0.3px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .jot-modal-title:active {
+      cursor: grabbing;
     }
 
     .jot-modal-text {
       font-size: 14px;
-      background: #fff;
+      background: #f6f4f0;
       border-left: 3px solid #111;
-      padding: 14px 16px;
+      padding: 12px 14px;
       margin-bottom: 20px;
       line-height: 1.6;
       word-wrap: break-word;
@@ -687,7 +676,7 @@ function injectWidget(initialStorage) {
     }
 
     .jot-form-group {
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .jot-form-label {
@@ -702,15 +691,16 @@ function injectWidget(initialStorage) {
 
     .jot-form-input,
     .jot-form-textarea {
-      width: 95%;
+      width: 100%;
       border: 1px solid #e5e5e5;
-      padding: 12px;
+      padding: 10px;
       border-radius: 6px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 13px;
       color: #111;
       background: #fff;
-      transition: all 0.15s ease;
+      transition: border-color 0.15s ease;
+      box-sizing: border-box;
     }
 
     .jot-form-input::placeholder,
@@ -721,14 +711,13 @@ function injectWidget(initialStorage) {
     .jot-form-textarea {
       resize: vertical;
       min-height: 80px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .jot-form-input:focus,
     .jot-form-textarea:focus {
       outline: none;
       border-color: #111;
-      box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08);
+      box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.1);
     }
 
     .jot-tags-input-container {
@@ -766,7 +755,7 @@ function injectWidget(initialStorage) {
 
     .jot-tags-dropdown-item:hover,
     .jot-tags-dropdown-item.highlighted {
-      background: #f9f9f9;
+      background: #f6f4f0;
     }
 
     .jot-tags-dropdown-item:last-child {
@@ -775,18 +764,19 @@ function injectWidget(initialStorage) {
 
     .jot-modal-actions {
       display: flex;
-      gap: 12px;
-      margin-top: 22px;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: flex-end;
     }
 
     .jot-modal-actions button {
-      flex: 1;
-      padding: 12px 16px;
+      padding: 10px 20px;
       border-radius: 6px;
       border: 1px solid #e5e5e5;
       cursor: pointer;
       font-weight: 500;
       font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       transition: all 0.15s ease;
       background: #fff;
       color: #111;
@@ -795,7 +785,7 @@ function injectWidget(initialStorage) {
     .jot-modal-actions .jot-btn-primary {
       background: #111;
       color: #f6f4f0;
-      border: 1px solid #111;
+      border-color: #111;
     }
 
     .jot-modal-actions .jot-btn-primary:hover {
@@ -804,17 +794,8 @@ function injectWidget(initialStorage) {
     }
 
     .jot-modal-actions .jot-btn-secondary:hover {
-      background: #f9f9f9;
-      border-color: #ddd;
-    }
-
-    .jot-modal-title {
-      cursor: grab;
-      user-select: none;
-    }
-
-    .jot-modal-title:active {
-      cursor: grabbing;
+      background: #f6f4f0;
+      border-color: #ccc;
     }
 
         /* Ensure the highlights list is properly scrollable */
@@ -1448,6 +1429,7 @@ function setupTabs() {
     tab.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("active"));
       tab.classList.add("active");
+      list.style.gridTemplateColumns = '';
       refreshHighlightsFromStorage();
     });
   });
@@ -1467,38 +1449,36 @@ function renderTagsView(highlights, list, selectedTag = null) {
   // If a tag is selected, show highlights for that tag
   if (selectedTag) {
     const filtered = highlights.filter(h => (h.tags || []).includes(selectedTag));
+    list.style.gridTemplateColumns = '1fr';
     list.innerHTML = `
-      <div class="readmark-tags-view">
-        <div class="readmark-tags-back">
-          <button class="readmark-back-btn" id="readmark-back-btn">← Back to tags</button>
-        </div>
-        <div class="readmark-highlights-grid">
-          ${filtered.map((h, idx) => {
-            const origIdx = highlights.indexOf(h);
-            return `
-              <div class="readmark-highlight-item" data-index="${origIdx}">
-                <button class="readmark-highlight-delete" data-index="${origIdx}" title="Delete">×</button>
-                <div class="readmark-highlight-text">"${h.text}"</div>
-                ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
-                ${h.tags && h.tags.length ? `
-                  <div class="readmark-highlight-tags">
-                    ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
-                  </div>
-                ` : ''}
-                ${h.timestamp ? `
-                  <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
-                ` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
+      <div class="readmark-tags-back">
+        <button class="readmark-back-btn" id="readmark-back-btn">← Back to tags</button>
       </div>
+      ${filtered.map((h) => {
+        const origIdx = highlights.indexOf(h);
+        return `
+          <div class="readmark-highlight-item" data-index="${origIdx}">
+            <button class="readmark-highlight-delete" data-index="${origIdx}" title="Delete">×</button>
+            <div class="readmark-highlight-text">"${h.text}"</div>
+            ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
+            ${h.tags && h.tags.length ? `
+              <div class="readmark-highlight-tags">
+                ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
+              </div>
+            ` : ''}
+            ${h.timestamp ? `
+              <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
+            ` : ''}
+          </div>
+        `;
+      }).join('')}
     `;
 
     // Attach back button handler
     const backBtn = document.getElementById('readmark-back-btn');
     if (backBtn) {
       backBtn.onclick = () => {
+        list.style.gridTemplateColumns = '';
         renderTagsView(highlights, list, null);
       };
     }
