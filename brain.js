@@ -101,7 +101,8 @@ function loadData() {
                 url: h.url,
                 timestamp: h.timestamp,
                 x: typeof h.x === 'number' ? h.x : Math.random() * 300,
-                y: typeof h.y === 'number' ? h.y : Math.random() * 200
+                y: typeof h.y === 'number' ? h.y : Math.random() * 200,
+                color: h.color || '#ffffff'
             };
         });
         
@@ -254,7 +255,8 @@ function saveToStorage() {
         url: note.url,
         timestamp: note.timestamp,
         x: note.x,
-        y: note.y
+        y: note.y,
+        color: note.color || '#ffffff'
     }));
     
     console.log('Saving note positions:', highlights.map(n => ({ id: n.id, x: n.x, y: n.y })));
@@ -467,6 +469,7 @@ function init() {
     document.getElementById('reset-layout-btn').addEventListener('click', resetLayout);
     document.getElementById('cancel-note').addEventListener('click', hideNoteModal);
     document.getElementById('save-note').addEventListener('click', saveNote);
+    setupColorPicker();
     
     const canvasContainer = document.querySelector('.canvas-container');
 
@@ -565,9 +568,10 @@ function renderNotes() {
     
     notes.forEach(note => {
         const card = document.createElement('div');
-        card.className = 'highlight-card';
+        card.className = 'highlight-card' + (_isColorDark(note.color) ? ' dark-bg' : '');
         card.style.left = `${note.x}px`;
         card.style.top = `${note.y}px`;
+        card.style.background = note.color || '#ffffff';
         card.setAttribute('data-id', String(note.id));
         
         card.innerHTML = `
@@ -777,12 +781,81 @@ function drawConnections() {
     });
 }
 
+function _isColorDark(hex) {
+    if (!hex || hex.length < 7) return false;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 128;
+}
+
+function _applyModalPreviewColor(color) {
+    const modal = document.querySelector('#note-modal .modal');
+    if (!modal) return;
+    modal.style.background = color || '#ffffff';
+    modal.classList.toggle('dark-bg', _isColorDark(color));
+}
+
+// Set up color swatch click handlers (called once from init)
+function setupColorPicker() {
+    const swatches = document.querySelectorAll('.color-swatch[data-color]');
+    const customInput = document.getElementById('note-color-custom');
+    const customSwatch = customInput ? customInput.closest('.color-swatch-custom') : null;
+    const hiddenColor = document.getElementById('note-color');
+
+    swatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            swatches.forEach(s => s.classList.remove('active'));
+            if (customSwatch) customSwatch.classList.remove('active');
+            swatch.classList.add('active');
+            if (hiddenColor) hiddenColor.value = swatch.dataset.color;
+            _applyModalPreviewColor(swatch.dataset.color);
+        });
+    });
+
+    if (customInput) {
+        customInput.addEventListener('input', () => {
+            swatches.forEach(s => s.classList.remove('active'));
+            if (customSwatch) customSwatch.classList.add('active');
+            if (hiddenColor) hiddenColor.value = customInput.value;
+            _applyModalPreviewColor(customInput.value);
+        });
+    }
+}
+
+// Set the color picker to a specific color, activating the matching swatch
+function setModalColor(color) {
+    const colorValue = color || '#ffffff';
+    const swatches = document.querySelectorAll('.color-swatch[data-color]');
+    const customInput = document.getElementById('note-color-custom');
+    const customSwatch = customInput ? customInput.closest('.color-swatch-custom') : null;
+    const hiddenColor = document.getElementById('note-color');
+
+    if (hiddenColor) hiddenColor.value = colorValue;
+    _applyModalPreviewColor(colorValue);
+
+    let matched = false;
+    swatches.forEach(s => {
+        s.classList.remove('active');
+        if (s.dataset.color === colorValue) {
+            s.classList.add('active');
+            matched = true;
+        }
+    });
+
+    if (!matched && customSwatch) {
+        customSwatch.classList.add('active');
+        if (customInput) customInput.value = colorValue;
+    }
+}
+
 // Show add note modal
 function showAddNoteModal() {
     document.getElementById('modal-title').textContent = 'Add New Note';
     document.getElementById('note-text').value = '';
     document.getElementById('note-comment').value = '';
     document.getElementById('note-tags').value = '';
+    setModalColor('#ffffff');
     currentEditId = null;
     document.getElementById('note-modal').style.display = 'flex';
 }
@@ -796,17 +869,18 @@ function hideNoteModal() {
 function editNote(noteId) {
     noteId = String(noteId);
     console.log('Looking for note with ID:', noteId);
-    
+
     const note = notes.find(n => String(n.id) === noteId);
     if (!note) {
         console.error('Note not found! ID:', noteId);
         return;
     }
-    
+
     document.getElementById('modal-title').textContent = 'Edit Note';
     document.getElementById('note-text').value = note.text;
     document.getElementById('note-comment').value = note.note || '';
     document.getElementById('note-tags').value = note.tags ? note.tags.join(', ') : '';
+    setModalColor(note.color || '#ffffff');
     currentEditId = noteId;
     document.getElementById('note-modal').style.display = 'flex';
 }
@@ -819,12 +893,13 @@ function saveNote() {
         .split(',')
         .map(t => t.trim())
         .filter(t => t);
-    
+    const color = document.getElementById('note-color').value || '#ffffff';
+
     if (!text) {
         alert('Please enter some text for your note.');
         return;
     }
-    
+
     if (currentEditId) {
         const noteId = String(currentEditId);
         const existingNote = notes.find(n => String(n.id) === noteId);
@@ -832,6 +907,7 @@ function saveNote() {
             existingNote.text = text;
             existingNote.note = note;
             existingNote.tags = tags;
+            existingNote.color = color;
             console.log('Updated note:', noteId);
         }
         currentEditId = null;
@@ -842,6 +918,7 @@ function saveNote() {
             text,
             note,
             tags,
+            color,
             x: position.x,
             y: position.y
         };
