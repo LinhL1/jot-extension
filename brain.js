@@ -6,11 +6,14 @@ let connections = [];
 let activeCard = null;
 let isDragging = false;
 let isDraggingBoard = false;
+let isSpacePanning = false;
 let dragOffset = { x: 0, y: 0 };
+let boardDragStart = { x: 0, y: 0 };
 let connectingFrom = null;
 let currentEditId = null;
 let boardOffset = { x: 0, y: 0 };
 let scale = 1;
+let _saveSettingsTimer = null;
 
 // Drawing mode variables
 let isDrawing = false;
@@ -340,6 +343,7 @@ function setupDrawingControls() {
                 drawingCanvas.classList.remove('view-mode');
             }
             if (notesContainer) notesContainer.classList.remove('view-mode');
+            document.querySelector('.canvas-container').style.cursor = '';
             drawModeBtn.classList.add('active');
             if (selectModeBtn) selectModeBtn.classList.remove('active');
             if (viewModeBtn) viewModeBtn.classList.remove('active');
@@ -357,6 +361,7 @@ function setupDrawingControls() {
                 drawingCanvas.classList.remove('view-mode');
             }
             if (notesContainer) notesContainer.classList.remove('view-mode');
+            document.querySelector('.canvas-container').style.cursor = '';
             if (drawModeBtn) drawModeBtn.classList.remove('active');
             selectModeBtn.classList.add('active');
             if (viewModeBtn) viewModeBtn.classList.remove('active');
@@ -374,6 +379,7 @@ function setupDrawingControls() {
                 drawingCanvas.classList.add('view-mode');
             }
             if (notesContainer) notesContainer.classList.add('view-mode');
+            document.querySelector('.canvas-container').style.cursor = 'grab';
             if (drawModeBtn) drawModeBtn.classList.remove('active');
             if (selectModeBtn) selectModeBtn.classList.remove('active');
             viewModeBtn.classList.add('active');
@@ -428,13 +434,45 @@ function init() {
     document.getElementById('cancel-note').addEventListener('click', hideNoteModal);
     document.getElementById('save-note').addEventListener('click', saveNote);
     
-    // Board dragging
+    // Board dragging (left-click on empty space)
     const board = document.getElementById('board');
     board.addEventListener('mousedown', startBoardDrag);
-    
-    // Zoom functionality
-    board.addEventListener('wheel', handleZoom, { passive: false });
-    
+
+    const canvasContainer = document.querySelector('.canvas-container');
+
+    // Middle-click pans in any mode
+    canvasContainer.addEventListener('mousedown', (e) => {
+        if (e.button === 1) {
+            e.preventDefault();
+            _startBoardPan(e.clientX, e.clientY);
+        }
+    });
+
+    // Space + left-click pans in any mode (capture phase overrides draw canvas)
+    document.addEventListener('mousedown', (e) => {
+        if (e.button === 0 && isSpacePanning && canvasContainer.contains(e.target)) {
+            e.preventDefault();
+            e.stopPropagation();
+            _startBoardPan(e.clientX, e.clientY);
+        }
+    }, true);
+
+    // Space key: hold to pan in any mode
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.target.matches('input, textarea, [contenteditable]')) {
+            isSpacePanning = true;
+            e.preventDefault();
+        }
+    });
+    document.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+            isSpacePanning = false;
+        }
+    });
+
+    // Scroll/wheel: pan by default, ctrl+scroll to zoom (matches Figma/Miro)
+    canvasContainer.addEventListener('wheel', handleZoom, { passive: false });
+
     drawConnections();
 }
 
@@ -528,9 +566,10 @@ function renderNotes() {
 
 // Start dragging a note
 function startDragging(e) {
+    if (e.button !== 0) return;
     if (e.target.classList.contains('card-btn')) return;
     if (isDrawMode || isViewMode) return;
-    
+
     activeCard = e.currentTarget;
     isDragging = true;
     activeCard.classList.add('dragging');
@@ -583,26 +622,33 @@ function stopDragging() {
     saveToStorage();
 }
 
+function _startBoardPan(clientX, clientY) {
+    isDraggingBoard = true;
+    boardDragStart.x = clientX - boardOffset.x;
+    boardDragStart.y = clientY - boardOffset.y;
+    document.getElementById('board').style.cursor = 'grabbing';
+    document.body.style.cursor = 'grabbing';
+}
+
 // Start board dragging
 function startBoardDrag(e) {
-    if (isDrawMode) return;
-    if (e.target.closest('.highlight-card')) return;
-    
-    isDraggingBoard = true;
-    
-    dragOffset.x = e.clientX - boardOffset.x;
-    dragOffset.y = e.clientY - boardOffset.y;
-    
-    document.body.style.cursor = 'grabbing';
+    // Middle mouse button pans in any mode
+    if (e.button === 1) {
+        e.preventDefault();
+    } else {
+        // Left click: only pan on empty space (unless space key is held)
+        if (isDrawMode && !isSpacePanning) return;
+        if (e.target.closest('.highlight-card') && !isSpacePanning) return;
+    }
+
+    _startBoardPan(e.clientX, e.clientY);
 }
 
 // Handle board dragging
 function onBoardDrag(e) {
     if (!isDraggingBoard) return;
-    
-    boardOffset.x = e.clientX - dragOffset.x;
-    boardOffset.y = e.clientY - dragOffset.y;
-    
+    boardOffset.x = e.clientX - boardDragStart.x;
+    boardOffset.y = e.clientY - boardDragStart.y;
     updateBoardTransform();
 }
 
@@ -610,23 +656,34 @@ function onBoardDrag(e) {
 function stopBoardDrag() {
     if (isDraggingBoard) {
         isDraggingBoard = false;
+        document.getElementById('board').style.cursor = '';
         document.body.style.cursor = '';
         saveToStorage();
     }
 }
 
-// Handle zoom
+// Handle scroll: pan by default, zoom with ctrl/cmd
 function handleZoom(e) {
     e.preventDefault();
-    
-    const zoomIntensity = 0.1;
-    const wheel = e.deltaY < 0 ? 1 : -1;
-    const newScale = scale * (1 + wheel * zoomIntensity);
-    
-    scale = Math.max(0.3, Math.min(3, newScale));
-    
-    updateBoardTransform();
-    saveToStorage();
+
+    if (e.ctrlKey || e.metaKey) {
+        const zoomIntensity = 0.1;
+        const wheel = e.deltaY < 0 ? 1 : -1;
+        const newScale = scale * (1 + wheel * zoomIntensity);
+        scale = Math.max(0.3, Math.min(3, newScale));
+        updateBoardTransform();
+    } else {
+        boardOffset.x -= e.deltaX;
+        boardOffset.y -= e.deltaY;
+        updateBoardTransform();
+    }
+
+    saveBoardSettingsDebounced();
+}
+
+function saveBoardSettingsDebounced() {
+    clearTimeout(_saveSettingsTimer);
+    _saveSettingsTimer = setTimeout(saveToStorage, 400);
 }
 
 // Update board transform based on offset and scale
