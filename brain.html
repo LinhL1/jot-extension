@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jot</title>
+    <link rel="stylesheet" href="brain-sidebar.css">
     <style>
         * {
             margin: 0;
@@ -61,6 +62,58 @@
             display: flex;
             gap: 12px;
             align-items: center;
+        }
+
+        /* Everything except the toolbar-visibility switch (and its divider)
+           fades/slides out together so the switch stays put and reachable. */
+        .controls > :not(.toolbar-switch) {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .controls.toolbar-hidden > :not(.toolbar-switch) {
+            opacity: 0;
+            transform: translateY(-8px);
+            pointer-events: none;
+        }
+
+        .toolbar-switch {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .toolbar-switch-track {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 999px;
+            transition: background 0.2s ease;
+        }
+
+        .toolbar-switch-thumb {
+            position: absolute;
+            top: 2px;
+            left: 18px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: left 0.2s ease;
+        }
+
+        .toolbar-switch.toolbar-hidden .toolbar-switch-track {
+            background: #e0e0e0;
+        }
+
+        .toolbar-switch.toolbar-hidden .toolbar-switch-thumb {
+            left: 2px;
         }
         .header-btn {
            flex: 1;
@@ -539,9 +592,28 @@
     </style>
 </head>
 <body>
+    <!-- Boards sidebar — position:fixed so it overlays without shifting canvas layout -->
+    <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" aria-expanded="false" aria-label="Toggle boards sidebar" title="Show boards">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </button>
+
+    <aside class="boards-sidebar" id="boards-sidebar" aria-label="Boards">
+        <div class="boards-sidebar-header">
+            <span class="boards-sidebar-title">Boards</span>
+            <button class="boards-sidebar-new-btn" id="new-board-btn" title="Create a new board">+ New Board</button>
+        </div>
+        <div class="boards-sidebar-list" id="board-list"></div>
+    </aside>
+
     <header>
         <img src="logo.png" alt="Jot Logo" class="header-logo">
         <div class="controls">
+            <button type="button" class="toolbar-switch" id="toolbar-toggle-btn" role="switch" aria-checked="true" title="Hide toolbar buttons" aria-label="Show or hide toolbar buttons">
+                <span class="toolbar-switch-track"><span class="toolbar-switch-thumb"></span></span>
+            </button>
+            <div class="divider"></div>
             <div class="tool-group">
                 <button class="header-btn" id="draw-mode-btn" title="Draw on canvas (D)">Doodle</button>
                 <button class="header-btn" id="select-mode-btn" title="Select and drag notes (S)">Move</button>
@@ -610,6 +682,7 @@
         </div>
     </div>
 
+    <script src="boardStorage.js"></script>
     <script src="brain.js"></script>
 </body>
 </html>

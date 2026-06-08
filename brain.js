@@ -15,6 +15,10 @@ let boardOffset = { x: 0, y: 0 };
 let scale = 1;
 let _saveSettingsTimer = null;
 
+// Multi-board state — set by loadBoardIntoCanvas before any canvas renders.
+let currentBoardId = null;
+let currentBoardIsLegacy = false;
+
 // Drawing mode variables
 let isDrawing = false;
 let isDrawMode = false;
@@ -58,41 +62,47 @@ function renderStrokes() {
     }
 }
 
-// Load data from storage
+// Load data from storage — now multi-board aware.
 function loadData() {
-    // Run migration first to fix any existing notes with old IDs
     migrateNotesToUniqueIds();
-    
-    chrome.storage.local.get(['readmarks', 'readmarkConnections', 'brainViewSettings', 'jotStrokes'], function(result) {
-        const highlights = result.readmarks || [];
-        connections = result.readmarkConnections || [];
-        
-        console.log('Loaded from storage:', {
-            highlightsCount: highlights.length,
-            connectionsCount: connections.length,
-            hasBrainViewSettings: !!result.brainViewSettings
+
+    JotBoardStorage.ensureBoardsInitialized(function (boards, activeId) {
+        loadBoardIntoCanvas(activeId, function () {
+            init();
+            setupLiveHighlightSync();
         });
-        
-        // Load viewport settings if they exist
-        if (result.brainViewSettings) {
-            boardOffset = result.brainViewSettings.boardOffset || { x: 0, y: 0 };
-            scale = result.brainViewSettings.scale || 1;
-            console.log('Loaded board settings:', { boardOffset, scale });
+    });
+}
+
+// Populate all canvas globals from storage for the given board, then call onLoaded.
+// Also sets currentBoardId and currentBoardIsLegacy.
+function loadBoardIntoCanvas(boardId, onLoaded) {
+    JotBoardStorage.loadBoardData(boardId, function (data) {
+        currentBoardId = boardId;
+        currentBoardIsLegacy = !!data.legacy;
+
+        connections = data.connections || [];
+        strokes = data.strokes || [];
+        currentStroke = null;
+
+        if (data.viewSettings) {
+            boardOffset = data.viewSettings.boardOffset || { x: 0, y: 0 };
+            scale = data.viewSettings.scale || 1;
+        } else {
+            boardOffset = { x: 0, y: 0 };
+            scale = 1;
         }
-        
-        // Transform highlights into notes format - Use saved positions!
-        notes = highlights.map((h, index) => {
+
+        const highlights = data.highlights || [];
+        notes = highlights.map(function (h, index) {
             let noteId = h.id;
-            
             if (!noteId) {
                 const textHash = hashString(h.text).substring(0, 8);
                 const timeStamp = h.timestamp ? new Date(h.timestamp).getTime() : Date.now();
                 const randomSuffix = Math.random().toString(36).substring(2, 8);
                 noteId = `note_${textHash}_${timeStamp}_${index}_${randomSuffix}`;
             }
-            
             noteId = String(noteId);
-            
             return {
                 id: noteId,
                 text: h.text,
@@ -105,55 +115,48 @@ function loadData() {
                 color: h.color || '#ffffff'
             };
         });
-        
-        console.log('Notes loaded with IDs:', notes.map(n => ({ id: n.id, text: n.text.substring(0, 20) })));
-        
-        // Load saved strokes
-        if (result.jotStrokes) {
-            strokes = result.jotStrokes;
-        }
 
-        // Initialize the app
-        init();
+        if (typeof onLoaded === 'function') onLoaded();
+    });
+}
 
-        // FIX: Listen for storage changes so new highlights saved from any tab
-        // appear on the board immediately without needing a page reload.
-        chrome.storage.onChanged.addListener(function(changes, area) {
-            if (area !== 'local') return;
-            if (!changes.readmarks && !changes.readmarkConnections) return;
+// One-time setup: live-sync new highlights into the active board when content.js
+// captures something. Only runs when the active board is the legacy one because
+// content.js always writes to the flat readmarks/* keys.
+function setupLiveHighlightSync() {
+    chrome.storage.onChanged.addListener(function (changes, area) {
+        if (area !== 'local') return;
+        if (!currentBoardIsLegacy) return;
+        if (!changes.readmarks && !changes.readmarkConnections) return;
 
-            chrome.storage.local.get(['readmarks', 'readmarkConnections'], function(result) {
-                const highlights = result.readmarks || [];
-                connections = result.readmarkConnections || [];
+        chrome.storage.local.get(['readmarks', 'readmarkConnections'], function (result) {
+            const highlights = result.readmarks || [];
+            connections = result.readmarkConnections || [];
 
-                // Build a set of IDs currently on the board
-                const existingIds = new Set(notes.map(n => String(n.id)));
+            const existingIds = new Set(notes.map(n => String(n.id)));
 
-                // Add any new highlights that aren't on the board yet
-                highlights.forEach((h, index) => {
-                    const hId = String(h.id || '');
-                    if (!hId || existingIds.has(hId)) return; // already on board
-
-                    const position = getNonOverlappingPosition();
-                    notes.push({
-                        id: hId,
-                        text: h.text,
-                        note: h.note,
-                        tags: h.tags || [],
-                        url: h.url,
-                        timestamp: h.timestamp,
-                        x: typeof h.x === 'number' ? h.x : position.x,
-                        y: typeof h.y === 'number' ? h.y : position.y
-                    });
+            highlights.forEach(function (h, index) {
+                const hId = String(h.id || '');
+                if (!hId || existingIds.has(hId)) return;
+                const position = getNonOverlappingPosition();
+                notes.push({
+                    id: hId,
+                    text: h.text,
+                    note: h.note,
+                    tags: h.tags || [],
+                    url: h.url,
+                    timestamp: h.timestamp,
+                    x: typeof h.x === 'number' ? h.x : position.x,
+                    y: typeof h.y === 'number' ? h.y : position.y,
+                    color: h.color || '#ffffff'
                 });
-
-                // Remove notes that were deleted from storage
-                const storageIds = new Set(highlights.map(h => String(h.id || '')));
-                notes = notes.filter(n => storageIds.has(String(n.id)));
-
-                renderNotes();
-                updateEmptyState();
             });
+
+            const storageIds = new Set(highlights.map(h => String(h.id || '')));
+            notes = notes.filter(n => storageIds.has(String(n.id)));
+
+            renderNotes();
+            updateEmptyState();
         });
     });
 }
@@ -244,9 +247,10 @@ function migrateNotesToUniqueIds() {
     });
 }
 
-// Save data to storage
+// Save the active board's data to storage via the central utility.
 function saveToStorage() {
-    // Save note positions
+    if (!currentBoardId) return;
+
     const highlights = notes.map(note => ({
         id: note.id,
         text: note.text,
@@ -258,29 +262,17 @@ function saveToStorage() {
         y: note.y,
         color: note.color || '#ffffff'
     }));
-    
-    console.log('Saving note positions:', highlights.map(n => ({ id: n.id, x: n.x, y: n.y })));
-    
-    // Save board settings
-    const brainViewSettings = {
-        boardOffset,
-        scale
-    };
-    
-    chrome.storage.local.set({
-        readmarks: highlights,
-        readmarkConnections: connections,
-        brainViewSettings,
-        jotStrokes: strokes,
-        jotDrawing: null  // clear legacy bitmap data
-    }, function() {
-        console.log('Data saved to storage:', {
-            notesCount: highlights.length,
-            boardOffset,
-            scale,
-            strokeCount: strokes.length
-        });
-    });
+
+    JotBoardStorage.saveBoardData(
+        currentBoardId,
+        {
+            highlights,
+            connections,
+            viewSettings: { boardOffset, scale },
+            strokes
+        },
+        currentBoardIsLegacy
+    );
 }
 
 // ==================== DRAWING SYSTEM ====================
@@ -448,6 +440,22 @@ function setupDrawingControls() {
     }
 }
 
+// Fade the toolbar buttons out in place (the visibility switch itself stays
+// put) — the header's footprint never changes, so the canvas container never
+// moves or resizes and the board's pan/zoom/drag coordinate math stays correct.
+function setupToolbarToggle() {
+    const controls = document.querySelector('.controls');
+    const toggleSwitch = document.getElementById('toolbar-toggle-btn');
+    if (!controls || !toggleSwitch) return;
+
+    toggleSwitch.addEventListener('click', () => {
+        const hidden = controls.classList.toggle('toolbar-hidden');
+        toggleSwitch.classList.toggle('toolbar-hidden', hidden);
+        toggleSwitch.setAttribute('aria-checked', String(!hidden));
+        toggleSwitch.title = hidden ? 'Show toolbar buttons' : 'Hide toolbar buttons';
+    });
+}
+
 // ==================== INITIALIZATION ====================
 
 function init() {
@@ -456,7 +464,9 @@ function init() {
     updateEmptyState();
     updateBoardTransform();
     initializeDrawing();
-    
+    setupToolbarToggle();
+    setupBoardsSidebar();
+
     // Set view mode as default
     const viewModeBtn = document.getElementById('view-mode-btn');
     if (viewModeBtn) {
@@ -991,6 +1001,205 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ==================== MULTI-BOARD SIDEBAR ====================
+
+// Switch to a different board.
+// Saves the outgoing board first unless options.saveCurrent === false (used after deletion).
+// Calls callback (if provided) once the sidebar list has re-rendered.
+function switchToBoard(boardId, options, callback) {
+    options = options || {};
+    if (boardId === currentBoardId) return;
+
+    clearTimeout(_saveSettingsTimer);
+    if (options.saveCurrent !== false) saveToStorage();
+
+    JotBoardStorage.setActiveBoardId(boardId);
+
+    loadBoardIntoCanvas(boardId, function () {
+        activeCard = null;
+        isDragging = false;
+        isDraggingBoard = false;
+        isDrawing = false;
+        connectingFrom = null;
+        currentEditId = null;
+
+        renderNotes();
+        updateEmptyState();
+        updateBoardTransform();
+
+        JotBoardStorage.getBoards(function (boards) {
+            renderSidebarBoardList(boards, callback);
+        });
+    });
+}
+
+// Wire up the sidebar toggle button and new-board button. Renders initial list.
+function setupBoardsSidebar() {
+    const sidebar = document.getElementById('boards-sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle-btn');
+    const newBoardBtn = document.getElementById('new-board-btn');
+    if (!sidebar || !toggleBtn) return;
+
+    toggleBtn.addEventListener('click', function () {
+        const open = sidebar.classList.toggle('open');
+        toggleBtn.classList.toggle('sidebar-open', open);
+        toggleBtn.setAttribute('aria-expanded', String(open));
+        toggleBtn.title = open ? 'Hide boards' : 'Show boards';
+    });
+
+    if (newBoardBtn) {
+        newBoardBtn.addEventListener('click', createNewBoard);
+    }
+
+    renderSidebarBoardList();
+}
+
+// Build or rebuild the board list DOM.
+// Pass boards array directly to skip a storage read, or omit to fetch fresh.
+// onRendered is called synchronously after the DOM is updated.
+function renderSidebarBoardList(boards, onRendered) {
+    if (!boards) {
+        JotBoardStorage.getBoards(function (b) { renderSidebarBoardList(b, onRendered); });
+        return;
+    }
+
+    const listEl = document.getElementById('board-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    boards.forEach(function (board) {
+        const item = document.createElement('div');
+        item.className = 'board-item' + (board.id === currentBoardId ? ' active' : '');
+        item.setAttribute('data-board-id', board.id);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'board-item-name';
+        nameSpan.textContent = board.name;
+
+        const actions = document.createElement('div');
+        actions.className = 'board-item-actions';
+
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'board-item-btn';
+        renameBtn.title = 'Rename board';
+        renameBtn.setAttribute('aria-label', 'Rename board');
+        renameBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'board-item-btn';
+        deleteBtn.title = 'Delete board';
+        deleteBtn.setAttribute('aria-label', 'Delete board');
+        deleteBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
+        actions.appendChild(renameBtn);
+        actions.appendChild(deleteBtn);
+        item.appendChild(nameSpan);
+        item.appendChild(actions);
+        listEl.appendChild(item);
+
+        item.addEventListener('click', function (e) {
+            if (e.target.closest('.board-item-btn')) return;
+            if (item.classList.contains('renaming')) return;
+            switchToBoard(board.id);
+        });
+
+        renameBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            startRenamingBoard(board.id);
+        });
+
+        deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            requestDeleteBoard(board.id);
+        });
+    });
+
+    if (typeof onRendered === 'function') onRendered();
+}
+
+// Replace the board item's name with an inline text input for renaming.
+function startRenamingBoard(boardId) {
+    const item = document.querySelector(`.board-item[data-board-id="${boardId}"]`);
+    if (!item) return;
+
+    const nameEl = item.querySelector('.board-item-name');
+    if (!nameEl) return;
+
+    item.classList.add('renaming');
+    const currentName = nameEl.textContent;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'board-item-rename-input';
+    input.value = currentName;
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let committed = false;
+
+    function commit() {
+        if (committed) return;
+        committed = true;
+        const newName = input.value.trim() || currentName;
+        JotBoardStorage.renameBoard(boardId, newName, function (boards) {
+            renderSidebarBoardList(boards);
+        });
+    }
+
+    function cancel() {
+        if (committed) return;
+        committed = true;
+        renderSidebarBoardList();
+    }
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    });
+    input.addEventListener('blur', commit);
+}
+
+// Confirm, then delete the board. If it was active, switch to the next available
+// board (or auto-create one if the list is now empty).
+function requestDeleteBoard(boardId) {
+    JotBoardStorage.getBoards(function (boards) {
+        const board = boards.find(function (b) { return b.id === boardId; });
+        if (!board) return;
+
+        if (!confirm('Delete board "' + board.name + '"? This cannot be undone.')) return;
+
+        const wasActive = boardId === currentBoardId;
+
+        JotBoardStorage.deleteBoard(boardId, function (remaining) {
+            if (!wasActive) {
+                renderSidebarBoardList(remaining);
+                return;
+            }
+
+            if (remaining.length > 0) {
+                switchToBoard(remaining[0].id, { saveCurrent: false });
+            } else {
+                // No boards left — create a fresh one and enter rename mode.
+                JotBoardStorage.createBoard('My Board', function (newBoard, allBoards) {
+                    switchToBoard(newBoard.id, { saveCurrent: false }, function () {
+                        startRenamingBoard(newBoard.id);
+                    });
+                });
+            }
+        });
+    });
+}
+
+// Create a new board, switch to it, and immediately enter rename mode.
+function createNewBoard() {
+    JotBoardStorage.createBoard('New Board', function (newBoard) {
+        switchToBoard(newBoard.id, {}, function () {
+            startRenamingBoard(newBoard.id);
+        });
+    });
 }
 
 // Start loading data when the page is ready
