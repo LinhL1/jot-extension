@@ -440,19 +440,25 @@ function setupDrawingControls() {
     }
 }
 
-// Fade the toolbar buttons out in place (the visibility switch itself stays
-// put) — the header's footprint never changes, so the canvas container never
-// moves or resizes and the board's pan/zoom/drag coordinate math stays correct.
+// Collapse or reveal the entire header. The canvas-container is flex:1 so it
+// automatically expands to fill the freed space. Canvas pixel buffers are
+// resized after the CSS transition completes so the coordinate system stays correct.
 function setupToolbarToggle() {
-    const controls = document.querySelector('.controls');
-    const toggleSwitch = document.getElementById('toolbar-toggle-btn');
-    if (!controls || !toggleSwitch) return;
+    const header = document.querySelector('header');
+    const toggleBtn = document.getElementById('header-toggle-btn');
+    if (!header || !toggleBtn) return;
 
-    toggleSwitch.addEventListener('click', () => {
-        const hidden = controls.classList.toggle('toolbar-hidden');
-        toggleSwitch.classList.toggle('toolbar-hidden', hidden);
-        toggleSwitch.setAttribute('aria-checked', String(!hidden));
-        toggleSwitch.title = hidden ? 'Show toolbar buttons' : 'Hide toolbar buttons';
+    toggleBtn.addEventListener('click', () => {
+        const hidden = header.classList.toggle('header-hidden');
+        toggleBtn.classList.toggle('header-hidden', hidden);
+        toggleBtn.setAttribute('aria-expanded', String(!hidden));
+        toggleBtn.title = hidden ? 'Show header' : 'Hide header';
+
+        // Resize canvas pixel buffers once the transition settles (0.28s + buffer)
+        setTimeout(() => {
+            resizeCanvas();
+            resizeDrawingCanvas();
+        }, 300);
     });
 }
 

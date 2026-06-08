@@ -31,6 +31,8 @@
             margin: 0 auto;
             overflow: hidden;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         header {
@@ -41,6 +43,18 @@
             justify-content: space-between;
             align-items: center;
             gap: 20px;
+            flex-shrink: 0;
+            overflow: hidden;
+            max-height: 200px;
+            transition: max-height 0.28s ease, opacity 0.28s ease, margin-bottom 0.28s ease, padding-bottom 0.28s ease;
+        }
+
+        header.header-hidden {
+            max-height: 0;
+            opacity: 0;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            pointer-events: none;
         }
 
         .header-left {
@@ -64,57 +78,6 @@
             align-items: center;
         }
 
-        /* Everything except the toolbar-visibility switch (and its divider)
-           fades/slides out together so the switch stays put and reachable. */
-        .controls > :not(.toolbar-switch) {
-            transition: opacity 0.25s ease, transform 0.25s ease;
-        }
-
-        .controls.toolbar-hidden > :not(.toolbar-switch) {
-            opacity: 0;
-            transform: translateY(-8px);
-            pointer-events: none;
-        }
-
-        .toolbar-switch {
-            display: inline-flex;
-            align-items: center;
-            flex-shrink: 0;
-            padding: 0;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-        }
-
-        .toolbar-switch-track {
-            position: relative;
-            display: inline-block;
-            width: 34px;
-            height: 18px;
-            background: var(--accent);
-            border-radius: 999px;
-            transition: background 0.2s ease;
-        }
-
-        .toolbar-switch-thumb {
-            position: absolute;
-            top: 2px;
-            left: 18px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-            transition: left 0.2s ease;
-        }
-
-        .toolbar-switch.toolbar-hidden .toolbar-switch-track {
-            background: #e0e0e0;
-        }
-
-        .toolbar-switch.toolbar-hidden .toolbar-switch-thumb {
-            left: 2px;
-        }
         .header-btn {
            flex: 1;
             padding: 6px 12px;
@@ -192,7 +155,8 @@
         .canvas-container {
             position: relative;
             width: 100%;
-            height: calc(100vh - 150px);
+            flex: 1;
+            min-height: 0;
             background: var(--bg-primary);
             overflow: hidden;
             border-radius: 8px;
@@ -607,13 +571,15 @@
         <div class="boards-sidebar-list" id="board-list"></div>
     </aside>
 
+    <button id="header-toggle-btn" class="header-toggle-btn" aria-expanded="true" aria-label="Toggle header" title="Hide header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
+
     <header>
         <img src="logo.png" alt="Jot Logo" class="header-logo">
         <div class="controls">
-            <button type="button" class="toolbar-switch" id="toolbar-toggle-btn" role="switch" aria-checked="true" title="Hide toolbar buttons" aria-label="Show or hide toolbar buttons">
-                <span class="toolbar-switch-track"><span class="toolbar-switch-thumb"></span></span>
-            </button>
-            <div class="divider"></div>
             <div class="tool-group">
                 <button class="header-btn" id="draw-mode-btn" title="Draw on canvas (D)">Doodle</button>
                 <button class="header-btn" id="select-mode-btn" title="Select and drag notes (S)">Move</button>

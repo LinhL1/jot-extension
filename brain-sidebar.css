@@ -1,5 +1,41 @@
 /* ===== BOARDS SIDEBAR — all sidebar styles live here ===== */
 
+/* Header toggle tab — mirrors .sidebar-toggle-btn but sits at the top-right edge */
+.header-toggle-btn {
+    position: fixed;
+    top: 14px;
+    right: 12px;
+    z-index: 160;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.header-toggle-btn:hover {
+    background: #2b2a2a;
+    color: #fff;
+}
+
+.header-toggle-btn svg {
+    transition: transform 0.28s ease;
+    flex-shrink: 0;
+}
+
+/* Chevron flips to point down when header is hidden */
+.header-toggle-btn.header-hidden svg {
+    transform: rotate(180deg);
+}
+
 /* Drawer handle that sits at the left edge of the board.
    Slides right along with the sidebar when it opens. */
 .sidebar-toggle-btn {
