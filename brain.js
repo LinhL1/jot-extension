@@ -19,6 +19,9 @@ let _saveSettingsTimer = null;
 let currentBoardId = null;
 let currentBoardIsLegacy = false;
 
+// Tracks note IDs whose AI tagging is in flight so cards can show a loading pill.
+const _taggingInProgress = new Set();
+
 // Drawing mode variables
 let isDrawing = false;
 let isDrawMode = false;
@@ -84,6 +87,7 @@ function loadBoardIntoCanvas(boardId, onLoaded) {
         connections = data.connections || [];
         strokes = data.strokes || [];
         currentStroke = null;
+        _taggingInProgress.clear();
 
         if (data.viewSettings) {
             boardOffset = data.viewSettings.boardOffset || { x: 0, y: 0 };
@@ -112,7 +116,9 @@ function loadBoardIntoCanvas(boardId, onLoaded) {
                 timestamp: h.timestamp,
                 x: typeof h.x === 'number' ? h.x : Math.random() * 300,
                 y: typeof h.y === 'number' ? h.y : Math.random() * 200,
-                color: h.color || '#ffffff'
+                color: h.color || '#ffffff',
+                aiCategory: h.aiCategory || null,
+                aiTags: h.aiTags || null
             };
         });
 
@@ -134,12 +140,13 @@ function setupLiveHighlightSync() {
             connections = result.readmarkConnections || [];
 
             const existingIds = new Set(notes.map(n => String(n.id)));
+            const newNotesForTagging = [];
 
             highlights.forEach(function (h, index) {
                 const hId = String(h.id || '');
                 if (!hId || existingIds.has(hId)) return;
                 const position = getNonOverlappingPosition();
-                notes.push({
+                const newNote = {
                     id: hId,
                     text: h.text,
                     note: h.note,
@@ -148,8 +155,14 @@ function setupLiveHighlightSync() {
                     timestamp: h.timestamp,
                     x: typeof h.x === 'number' ? h.x : position.x,
                     y: typeof h.y === 'number' ? h.y : position.y,
-                    color: h.color || '#ffffff'
-                });
+                    color: h.color || '#ffffff',
+                    aiCategory: h.aiCategory || null,
+                    aiTags: h.aiTags || null
+                };
+                notes.push(newNote);
+                if (!newNote.aiCategory && !newNote.aiTags) {
+                    newNotesForTagging.push(newNote);
+                }
             });
 
             const storageIds = new Set(highlights.map(h => String(h.id || '')));
@@ -157,6 +170,7 @@ function setupLiveHighlightSync() {
 
             renderNotes();
             updateEmptyState();
+            newNotesForTagging.forEach(_tagNote);
         });
     });
 }
@@ -260,7 +274,9 @@ function saveToStorage() {
         timestamp: note.timestamp,
         x: note.x,
         y: note.y,
-        color: note.color || '#ffffff'
+        color: note.color || '#ffffff',
+        aiCategory: note.aiCategory || null,
+        aiTags: note.aiTags || null
     }));
 
     JotBoardStorage.saveBoardData(
@@ -480,6 +496,7 @@ function init() {
     }
     
     window.addEventListener('resize', resizeCanvas);
+    document.getElementById('notes-container').addEventListener('mousedown', startDragging);
     document.getElementById('add-note-btn').addEventListener('click', showAddNoteModal);
     document.getElementById('save-layout-btn').addEventListener('click', saveLayout);
     document.getElementById('reset-layout-btn').addEventListener('click', resetLayout);
@@ -581,7 +598,8 @@ function renderNotes() {
     if (!notesContainer) return;
     
     notesContainer.innerHTML = '';
-    
+
+    const fragment = document.createDocumentFragment();
     notes.forEach(note => {
         const card = document.createElement('div');
         card.className = 'highlight-card' + (_isColorDark(note.color) ? ' dark-bg' : '');
@@ -589,7 +607,7 @@ function renderNotes() {
         card.style.top = `${note.y}px`;
         card.style.background = note.color || '#ffffff';
         card.setAttribute('data-id', String(note.id));
-        
+
         card.innerHTML = `
             <div class="highlight-text">"${escapeHtml(note.text)}"</div>
             ${note.note ? `<div class="highlight-note">${escapeHtml(note.note)}</div>` : ''}
@@ -598,22 +616,23 @@ function renderNotes() {
                     ${note.tags.map(t => `<span class="tag">#${t}</span>`).join('')}
                 </div>
             ` : ''}
+            ${_renderAiTagsHtml(note, _taggingInProgress.has(String(note.id)))}
             <div class="highlight-meta">
                 ${note.url ? `<div>From: ${new URL(note.url).hostname}</div>` : ''}
                 ${note.timestamp ? `<div>Saved: ${new Date(note.timestamp).toLocaleString()}</div>` : ''}
             </div>
             <div class="card-actions">
                 <button class="card-btn edit-btn" data-id="${String(note.id)}">Edit</button>
+                <button class="card-btn move-btn" data-id="${String(note.id)}" title="Move to another board">Move</button>
+                <button class="card-btn copy-btn" data-id="${String(note.id)}" title="Copy to another board">Copy</button>
                 <button class="card-btn delete-btn" data-id="${String(note.id)}">Delete</button>
             </div>
         `;
-        
-        card.addEventListener('mousedown', startDragging);
-        
-        notesContainer.appendChild(card);
+
+        fragment.appendChild(card);
     });
-    
-    saveToStorage();
+    notesContainer.appendChild(fragment);
+
     drawConnections();
 }
 
@@ -623,7 +642,8 @@ function startDragging(e) {
     if (e.target.classList.contains('card-btn')) return;
     if (isDrawMode || isViewMode) return;
 
-    activeCard = e.currentTarget;
+    activeCard = e.target.closest('.highlight-card');
+    if (!activeCard) return;
     isDragging = true;
     activeCard.classList.add('dragging');
     
@@ -715,11 +735,20 @@ function stopBoardDrag() {
     }
 }
 
-// Handle scroll: pan by default, zoom with ctrl/cmd
+// Physical mouse wheels produce large, discrete deltaY steps (typically ≥40px
+// after browser normalization) with no horizontal component. Touchpads produce
+// small, continuous values and may include deltaX for two-finger panning.
+function _isMouseWheelEvent(e) {
+    if (e.deltaMode !== 0) return true;       // line/page mode = physical scroll wheel
+    if (Math.abs(e.deltaX) > 2) return false; // horizontal delta = touchpad pan
+    return Math.abs(e.deltaY) >= 40;          // large discrete step = scroll wheel click
+}
+
+// Handle scroll: mouse wheel zooms, touchpad pans, ctrl/cmd always zooms
 function handleZoom(e) {
     e.preventDefault();
 
-    if (e.ctrlKey || e.metaKey) {
+    if (e.ctrlKey || e.metaKey || _isMouseWheelEvent(e)) {
         const zoomIntensity = 0.1;
         const wheel = e.deltaY < 0 ? 1 : -1;
         const newScale = scale * (1 + wheel * zoomIntensity);
@@ -903,6 +932,7 @@ function editNote(noteId) {
 
 // Save note
 function saveNote() {
+    console.log('[Jot] saveNote called');
     const text = document.getElementById('note-text').value.trim();
     const note = document.getElementById('note-comment').value.trim();
     const tags = document.getElementById('note-tags').value
@@ -916,14 +946,22 @@ function saveNote() {
         return;
     }
 
+    let noteToTag = null;
+
     if (currentEditId) {
         const noteId = String(currentEditId);
         const existingNote = notes.find(n => String(n.id) === noteId);
         if (existingNote) {
+            const textChanged = existingNote.text !== text;
             existingNote.text = text;
             existingNote.note = note;
             existingNote.tags = tags;
             existingNote.color = color;
+            if (textChanged) {
+                existingNote.aiCategory = null;
+                existingNote.aiTags = null;
+                noteToTag = existingNote;
+            }
             console.log('Updated note:', noteId);
         }
         currentEditId = null;
@@ -935,17 +973,22 @@ function saveNote() {
             note,
             tags,
             color,
+            aiCategory: null,
+            aiTags: null,
             x: position.x,
             y: position.y
         };
         notes.push(newNote);
+        noteToTag = newNote;
         console.log('Created new note:', newNote.id);
     }
-    
+
     renderNotes();
     updateEmptyState();
     hideNoteModal();
     saveToStorage();
+
+    if (noteToTag) _tagNote(noteToTag);
 }
 
 // Delete note
@@ -1007,6 +1050,83 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ==================== AI TAGGING ====================
+
+// Returns the HTML string for a note's AI tag row, or '' if nothing to show.
+// isLoading: true while the Gemini request is in flight.
+function _renderAiTagsHtml(note, isLoading) {
+    if (isLoading) {
+        return '<div class="ai-tags-row"><span class="ai-tags-loading"></span></div>';
+    }
+    if (!note.aiCategory && (!note.aiTags || !note.aiTags.length)) return '';
+    var parts = [];
+    if (note.aiCategory) {
+        parts.push('<span class="tag">#' + escapeHtml(note.aiCategory) + '</span>');
+    }
+    if (note.aiTags && note.aiTags.length) {
+        note.aiTags.forEach(function (t) {
+            parts.push('<span class="tag">#' + escapeHtml(t) + '</span>');
+        });
+    }
+    return parts.length ? '<div class="ai-tags-row">' + parts.join('') + '</div>' : '';
+}
+
+// Update only the AI tag row on an already-rendered card, avoiding a full renderNotes() pass.
+function _updateCardTagsDOM(noteId) {
+    var card = document.querySelector('.highlight-card[data-id="' + noteId + '"]');
+    if (!card) return;
+    var note = notes.find(function (n) { return String(n.id) === String(noteId); });
+    if (!note) return;
+
+    var existing = card.querySelector('.ai-tags-row');
+    var html = _renderAiTagsHtml(note, _taggingInProgress.has(noteId));
+
+    if (!html) {
+        if (existing) existing.remove();
+        return;
+    }
+
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    var newEl = tmp.firstChild;
+
+    if (existing) {
+        existing.replaceWith(newEl);
+    } else {
+        var meta = card.querySelector('.highlight-meta');
+        if (meta) {
+            card.insertBefore(newEl, meta);
+        } else {
+            var actions = card.querySelector('.card-actions');
+            if (actions) card.insertBefore(newEl, actions);
+        }
+    }
+}
+
+// Call the Gemini API for a note and update the card when the response arrives.
+// Saves the note immediately with null tags, then updates storage when tags arrive.
+// Fails silently — never blocks or delays the user.
+function _tagNote(note) {
+    console.log('[Jot] _tagNote called, JotTagger:', !!window.JotTagger);
+    if (!window.JotTagger) return;
+    var noteId = String(note.id);
+
+    _taggingInProgress.add(noteId);
+    _updateCardTagsDOM(noteId);
+
+    window.JotTagger.generateNoteTags(note.text).then(function (result) {
+        console.log('[Jot] Gemini result:', result);
+        _taggingInProgress.delete(noteId);
+        var noteObj = notes.find(function (n) { return String(n.id) === noteId; });
+        if (result && noteObj) {
+            noteObj.aiCategory = result.category;
+            noteObj.aiTags = result.tags;
+            saveToStorage();
+        }
+        _updateCardTagsDOM(noteId);
+    });
 }
 
 // ==================== MULTI-BOARD SIDEBAR ====================
@@ -1084,23 +1204,38 @@ function renderSidebarBoardList(boards, onRendered) {
         nameSpan.className = 'board-item-name';
         nameSpan.textContent = board.name;
 
+        const isBrainDump = board.id === JotBoardStorage.BRAIN_DUMP_ID;
+
         const actions = document.createElement('div');
         actions.className = 'board-item-actions';
 
-        const renameBtn = document.createElement('button');
-        renameBtn.className = 'board-item-btn';
-        renameBtn.title = 'Rename board';
-        renameBtn.setAttribute('aria-label', 'Rename board');
-        renameBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
+        if (!isBrainDump) {
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'board-item-btn';
+            renameBtn.title = 'Rename board';
+            renameBtn.setAttribute('aria-label', 'Rename board');
+            renameBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'board-item-btn';
-        deleteBtn.title = 'Delete board';
-        deleteBtn.setAttribute('aria-label', 'Delete board');
-        deleteBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'board-item-btn';
+            deleteBtn.title = 'Delete board';
+            deleteBtn.setAttribute('aria-label', 'Delete board');
+            deleteBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
-        actions.appendChild(renameBtn);
-        actions.appendChild(deleteBtn);
+            actions.appendChild(renameBtn);
+            actions.appendChild(deleteBtn);
+
+            renameBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                startRenamingBoard(board.id);
+            });
+
+            deleteBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                requestDeleteBoard(board.id);
+            });
+        }
+
         item.appendChild(nameSpan);
         item.appendChild(actions);
         listEl.appendChild(item);
@@ -1110,16 +1245,6 @@ function renderSidebarBoardList(boards, onRendered) {
             if (item.classList.contains('renaming')) return;
             switchToBoard(board.id);
         });
-
-        renameBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            startRenamingBoard(board.id);
-        });
-
-        deleteBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            requestDeleteBoard(board.id);
-        });
     });
 
     if (typeof onRendered === 'function') onRendered();
@@ -1127,6 +1252,7 @@ function renderSidebarBoardList(boards, onRendered) {
 
 // Replace the board item's name with an inline text input for renaming.
 function startRenamingBoard(boardId) {
+    if (boardId === JotBoardStorage.BRAIN_DUMP_ID) return;
     const item = document.querySelector(`.board-item[data-board-id="${boardId}"]`);
     if (!item) return;
 
@@ -1171,6 +1297,7 @@ function startRenamingBoard(boardId) {
 // Confirm, then delete the board. If it was active, switch to the next available
 // board (or auto-create one if the list is now empty).
 function requestDeleteBoard(boardId) {
+    if (boardId === JotBoardStorage.BRAIN_DUMP_ID) return;
     JotBoardStorage.getBoards(function (boards) {
         const board = boards.find(function (b) { return b.id === boardId; });
         if (!board) return;
@@ -1208,6 +1335,160 @@ function createNewBoard() {
     });
 }
 
+// ==================== BOARD PICKER (MOVE / COPY) ====================
+
+// Show a compact picker panel anchored to anchorEl.
+// mode: 'move' (write to dest, delete from source) or 'copy' (duplicate only).
+function showBoardPickerForNote(noteId, mode, anchorEl) {
+    _closeBoardPicker();
+
+    JotBoardStorage.getBoards(function (boards) {
+        var targets = boards.filter(function (b) { return b.id !== currentBoardId; });
+        if (targets.length === 0) return;
+
+        var picker = document.createElement('div');
+        picker.className = 'board-picker-panel';
+        picker.id = 'board-picker-panel';
+
+        var header = document.createElement('div');
+        header.className = 'board-picker-header';
+        header.textContent = mode === 'move' ? 'Move to board' : 'Copy to board';
+        picker.appendChild(header);
+
+        var list = document.createElement('div');
+        list.className = 'board-picker-list';
+
+        targets.forEach(function (board) {
+            var btn = document.createElement('button');
+            btn.className = 'board-picker-item';
+            btn.textContent = board.name;
+            btn.setAttribute('data-board-id', board.id);
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (mode === 'copy') {
+                    _executeCopyNote(noteId, board);
+                    _closeBoardPicker();
+                } else {
+                    _showMoveConfirm(picker, noteId, board);
+                }
+            });
+
+            list.appendChild(btn);
+        });
+
+        picker.appendChild(list);
+        document.body.appendChild(picker);
+
+        // Position the picker below the anchor, clamped to the viewport.
+        var rect = anchorEl.getBoundingClientRect();
+        var pickerW = 200;
+        var left = rect.left;
+        var top = rect.bottom + 6;
+        if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+        if (top + 220 > window.innerHeight - 8) top = Math.max(8, rect.top - 220 - 6);
+        picker.style.left = Math.max(8, left) + 'px';
+        picker.style.top = top + 'px';
+
+        // Dismiss on any outside click (use timeout so this click doesn't immediately close it)
+        setTimeout(function () {
+            document.addEventListener('click', _boardPickerOutsideClick);
+        }, 0);
+    });
+}
+
+// Replace the board list with an inline confirm step for move operations.
+function _showMoveConfirm(pickerEl, noteId, targetBoard) {
+    var list = pickerEl.querySelector('.board-picker-list');
+    if (list) list.remove();
+
+    var row = document.createElement('div');
+    row.className = 'board-picker-confirm';
+
+    var label = document.createElement('span');
+    label.className = 'board-picker-confirm-text';
+    label.textContent = 'Move to “' + targetBoard.name + '”?';
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 'board-picker-confirm-btn';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        _closeBoardPicker();
+    });
+
+    var confirmBtn = document.createElement('button');
+    confirmBtn.className = 'board-picker-confirm-btn primary';
+    confirmBtn.textContent = 'Move';
+    confirmBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        _executeMoveNote(noteId, targetBoard);
+        _closeBoardPicker();
+    });
+
+    row.appendChild(label);
+    row.appendChild(cancelBtn);
+    row.appendChild(confirmBtn);
+    pickerEl.appendChild(row);
+}
+
+function _closeBoardPicker() {
+    var el = document.getElementById('board-picker-panel');
+    if (el) el.remove();
+    document.removeEventListener('click', _boardPickerOutsideClick);
+}
+
+function _boardPickerOutsideClick(e) {
+    var picker = document.getElementById('board-picker-panel');
+    if (!picker) { document.removeEventListener('click', _boardPickerOutsideClick); return; }
+    if (!picker.contains(e.target)) {
+        _closeBoardPicker();
+    }
+}
+
+// Write note to destination first; on success remove from source and re-render.
+// This satisfies the "write dest, confirm, delete source" atomicity requirement.
+function _executeMoveNote(noteId, targetBoard) {
+    var note = notes.find(function (n) { return String(n.id) === String(noteId); });
+    if (!note) return;
+
+    var toIsLegacy = !!targetBoard.legacy;
+
+    // Clear any pending debounced save to prevent a stale write racing the move.
+    clearTimeout(_saveSettingsTimer);
+
+    JotBoardStorage.appendHighlightToBoard(targetBoard.id, toIsLegacy, note, function () {
+        // Destination confirmed written — now remove from source (in-memory + storage).
+        notes = notes.filter(function (n) { return String(n.id) !== String(noteId); });
+        connections = connections.filter(function (c) {
+            return String(c.from) !== String(noteId) && String(c.to) !== String(noteId);
+        });
+        renderNotes();
+        saveToStorage();
+        updateEmptyState();
+    });
+}
+
+function _executeCopyNote(noteId, targetBoard) {
+    var note = notes.find(function (n) { return String(n.id) === String(noteId); });
+    if (!note) return;
+
+    var toIsLegacy = !!targetBoard.legacy;
+
+    JotBoardStorage.copyNoteToBoard(note, targetBoard.id, toIsLegacy, function () {
+        // Show a brief "Copied!" label on the card.
+        var card = document.querySelector('.highlight-card[data-id="' + noteId + '"]');
+        if (!card) return;
+        var existing = card.querySelector('.card-copy-toast');
+        if (existing) existing.remove();
+        var toast = document.createElement('div');
+        toast.className = 'card-copy-toast';
+        toast.textContent = 'Copied!';
+        card.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 1600);
+    });
+}
+
 // Start loading data when the page is ready
 document.addEventListener('DOMContentLoaded', function() {
     const board = document.getElementById('board');
@@ -1215,13 +1496,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.classList.contains('edit-btn')) {
             e.stopPropagation();
             const noteId = String(e.target.getAttribute('data-id'));
-            console.log('Edit clicked for note ID:', noteId);
             editNote(noteId);
         } else if (e.target.classList.contains('delete-btn')) {
             e.stopPropagation();
             const noteId = String(e.target.getAttribute('data-id'));
-            console.log('Delete clicked for note ID:', noteId);
             deleteNote(noteId);
+        } else if (e.target.classList.contains('move-btn')) {
+            e.stopPropagation();
+            showBoardPickerForNote(String(e.target.getAttribute('data-id')), 'move', e.target);
+        } else if (e.target.classList.contains('copy-btn')) {
+            e.stopPropagation();
+            showBoardPickerForNote(String(e.target.getAttribute('data-id')), 'copy', e.target);
         }
     });
     

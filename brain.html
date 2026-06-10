@@ -553,6 +553,34 @@
             color: var(--text-primary);
             font-size: 13px;
         }
+
+        /* ── AI-generated tags ── */
+        .ai-tags-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 12px 0 8px 0;
+        }
+
+        .ai-tags-loading {
+            display: inline-block;
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 4px 0;
+            min-width: 60px;
+            animation: aiTagPulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes aiTagPulse {
+            0%, 100% { opacity: 0.35; }
+            50%       { opacity: 0.9; }
+        }
+
+        .highlight-card.dark-bg .ai-tags-loading {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -648,6 +676,7 @@
         </div>
     </div>
 
+    <script src="src/utils/tagger.js"></script>
     <script src="boardStorage.js"></script>
     <script src="brain.js"></script>
 </body>

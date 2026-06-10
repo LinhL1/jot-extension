@@ -1255,6 +1255,16 @@ function showSaveDialog(selectedText) {
         </div>
       </div>
 
+      <div class="jot-form-group">
+        <label class="jot-form-label">Save to board</label>
+        <select class="jot-form-input" id="jot-board-select" style="padding:8px 10px;cursor:pointer;">
+          <option value="brain-dump-default">Brain Dump</option>
+        </select>
+        <div id="jot-new-board-wrap" style="display:none;margin-top:8px;">
+          <input class="jot-form-input" id="jot-new-board-name" placeholder="New board name..." />
+        </div>
+      </div>
+
       <div class="jot-modal-actions">
         <button class="jot-btn-secondary" id="jot-cancel">Cancel</button>
         <button class="jot-btn-primary" id="jot-save">Save</button>
@@ -1339,9 +1349,10 @@ function showSaveDialog(selectedText) {
   });
 
   /* =========================
-     SETUP TAG AUTOCOMPLETE
+     SETUP TAG AUTOCOMPLETE + BOARD SELECTOR
   ========================= */
-  safeStorageGet(['readmarks'], (res) => {
+  safeStorageGet(['readmarks', 'jotBoards'], (res) => {
+    // Tag autocomplete
     const highlights = res.readmarks || [];
     const allTags = new Set();
     highlights.forEach(h => {
@@ -1352,10 +1363,46 @@ function showSaveDialog(selectedText) {
     if (tagsInput) {
       setupTagAutocomplete(tagsInput, availableTags);
     }
+
+    // Board selector — populate from stored boards list
+    const boards = res.jotBoards || [];
+    const boardSelect = document.getElementById('jot-board-select');
+    if (boardSelect && boards.length > 0) {
+      const brainDumpId = (typeof JotBoardStorage !== 'undefined')
+        ? JotBoardStorage.BRAIN_DUMP_ID
+        : 'brain-dump-default';
+
+      boardSelect.innerHTML = '';
+      boards.forEach(board => {
+        const opt = document.createElement('option');
+        opt.value = board.id;
+        opt.textContent = board.name;
+        opt.setAttribute('data-legacy', board.legacy ? 'true' : 'false');
+        if (board.id === brainDumpId) opt.selected = true;
+        boardSelect.appendChild(opt);
+      });
+
+      // "+ New Board" option at the bottom
+      const newOpt = document.createElement('option');
+      newOpt.value = '__new_board__';
+      newOpt.textContent = '+ New Board';
+      boardSelect.appendChild(newOpt);
+
+      boardSelect.addEventListener('change', () => {
+        const wrap = document.getElementById('jot-new-board-wrap');
+        if (!wrap) return;
+        const isNew = boardSelect.value === '__new_board__';
+        wrap.style.display = isNew ? 'block' : 'none';
+        if (isNew) {
+          const nameInput = document.getElementById('jot-new-board-name');
+          if (nameInput) nameInput.focus();
+        }
+      });
+    }
   });
 
   /* =========================
-     SAVE LOGIC — FIX: assign id at creation time
+     SAVE LOGIC
   ========================= */
   document.getElementById("jot-save").onclick = () => {
     const note = document.getElementById("jot-note-input").value.trim();
@@ -1365,43 +1412,86 @@ function showSaveDialog(selectedText) {
       .map(t => t.trim())
       .filter(Boolean);
 
-    safeStorageGet(["readmarks"], (res) => {
-      const data = res.readmarks || [];
+    const boardSelect = document.getElementById('jot-board-select');
+    const selectedBoardId = boardSelect ? boardSelect.value : 'brain-dump-default';
+    const brainDumpId = (typeof JotBoardStorage !== 'undefined')
+      ? JotBoardStorage.BRAIN_DUMP_ID
+      : 'brain-dump-default';
 
-      // FIX: Every highlight gets a stable unique id right here at save time.
-      // brain.js reads this id to place and track the card on the board.
-      data.push({
-        id: generateHighlightId(trimmed),   // ← THE FIX
-        text: trimmed,
-        note,
-        tags,
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-        domain: window.location.hostname
+    const highlight = {
+      id: generateHighlightId(trimmed),
+      text: trimmed,
+      note,
+      tags,
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      domain: window.location.hostname
+    };
+
+    function afterSave() {
+      overlay.remove();
+      refreshHighlightsFromStorage();
+
+      const toast = document.createElement("div");
+      toast.textContent = "✓ Saved!";
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        background: #111;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 6px;
+        z-index: 1000000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+
+    // Route to the selected board via the storage utility.
+    // Falls back to direct readmarks write if JotBoardStorage is unavailable.
+    if (typeof JotBoardStorage === 'undefined') {
+      safeStorageGet(["readmarks"], (res) => {
+        const data = res.readmarks || [];
+        data.push(highlight);
+        safeStorageSet({ readmarks: data }, afterSave);
       });
+      return;
+    }
 
-      safeStorageSet({ readmarks: data }, () => {
-        overlay.remove();
-        refreshHighlightsFromStorage();
-
-        const toast = document.createElement("div");
-        toast.textContent = "✓ Saved!";
-        toast.style.cssText = `
-          position: fixed;
-          bottom: 80px;
-          right: 20px;
-          background: #111;
-          color: #fff;
-          padding: 10px 14px;
-          border-radius: 6px;
-          z-index: 1000000;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        `;
-
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
+    if (selectedBoardId === '__new_board__') {
+      const newName = (document.getElementById('jot-new-board-name').value || '').trim() || 'New Board';
+      JotBoardStorage.createBoard(newName, (newBoard) => {
+        try {
+          JotBoardStorage.appendHighlightToBoard(newBoard.id, false, highlight, afterSave);
+        } catch (err) {
+          safeStorageGet(["readmarks"], (res) => {
+            const data = res.readmarks || [];
+            data.push(highlight);
+            safeStorageSet({ readmarks: data }, afterSave);
+          });
+        }
       });
-    });
+      return;
+    }
+
+    // Determine if the chosen board is legacy (Brain Dump is always legacy)
+    const selectedOpt = boardSelect ? boardSelect.options[boardSelect.selectedIndex] : null;
+    const isLegacy = selectedOpt
+      ? selectedOpt.getAttribute('data-legacy') === 'true'
+      : selectedBoardId === brainDumpId;
+
+    try {
+      JotBoardStorage.appendHighlightToBoard(selectedBoardId, isLegacy, highlight, afterSave);
+    } catch (err) {
+      // Context invalidated — fall back to direct write
+      safeStorageGet(["readmarks"], (res) => {
+        const data = res.readmarks || [];
+        data.push(highlight);
+        safeStorageSet({ readmarks: data }, afterSave);
+      });
+    }
   };
 
   document.getElementById("jot-cancel").onclick = () => {
