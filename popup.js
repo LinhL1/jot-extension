@@ -1,8 +1,14 @@
 // =====================
 // LOAD STATS
 // =====================
-chrome.storage.local.get(['readmarks'], function(result) {
-  const highlights = result.readmarks || [];
+chrome.storage.local.get(['readmarks', 'jotBoardData'], function(result) {
+  const highlights = (result.readmarks || []).slice();
+
+  // Include notes from all non-legacy boards too
+  const boardData = result.jotBoardData || {};
+  Object.keys(boardData).forEach(boardId => {
+    (boardData[boardId].highlights || []).forEach(h => highlights.push(h));
+  });
 
   document.getElementById('stat-highlights').textContent = highlights.length;
 

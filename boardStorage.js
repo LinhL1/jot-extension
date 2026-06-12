@@ -229,6 +229,105 @@
         });
     }
 
+    // Merge a patch object into a single highlight by ID, without overwriting the
+    // rest of the array. Used by the AI tagging write-back so a tag arriving late
+    // can't clobber highlights captured concurrently from other tabs.
+    function updateHighlightInBoard(boardId, isLegacy, noteId, patch, callback) {
+        var done = callback || function () {};
+        var idStr = String(noteId);
+
+        function mergeInto(arr) {
+            return (arr || []).map(function (h) {
+                if (String(h.id) !== idStr) return h;
+                var merged = {};
+                for (var k in h) {
+                    if (Object.prototype.hasOwnProperty.call(h, k)) merged[k] = h[k];
+                }
+                for (var p in patch) {
+                    if (Object.prototype.hasOwnProperty.call(patch, p)) merged[p] = patch[p];
+                }
+                return merged;
+            });
+        }
+
+        if (isLegacy) {
+            chrome.storage.local.get(['readmarks'], function (res) {
+                chrome.storage.local.set({ readmarks: mergeInto(res.readmarks) }, done);
+            });
+            return;
+        }
+        chrome.storage.local.get([KEYS.BOARD_DATA], function (res) {
+            var all = res[KEYS.BOARD_DATA] || {};
+            var bd = all[boardId];
+            if (!bd) { done(); return; }
+            bd.highlights = mergeInto(bd.highlights);
+            all[boardId] = bd;
+            chrome.storage.local.set({ jotBoardData: all }, done);
+        });
+    }
+
+    // Aggregate highlights from every board (legacy readmarks + jotBoardData) in one
+    // storage read. Each entry is a copy of the stored highlight annotated with
+    // _boardId, _boardName, _isLegacy so list UIs can display and delete per-board.
+    function getAllHighlights(callback) {
+        chrome.storage.local.get([KEYS.BOARDS, 'readmarks', KEYS.BOARD_DATA], function (res) {
+            var boards = res[KEYS.BOARDS] || [];
+            var all = [];
+
+            function annotate(h, board) {
+                var copy = {};
+                for (var k in h) {
+                    if (Object.prototype.hasOwnProperty.call(h, k)) copy[k] = h[k];
+                }
+                copy._boardId = board.id;
+                copy._boardName = board.name;
+                copy._isLegacy = !!board.legacy;
+                return copy;
+            }
+
+            // Legacy highlights live in readmarks even before jotBoards is initialized.
+            var legacyBoard = boards.find(function (b) { return b.legacy; }) ||
+                { id: BRAIN_DUMP_ID, name: 'Brain Dump', legacy: true };
+            (res.readmarks || []).forEach(function (h) {
+                all.push(annotate(h, legacyBoard));
+            });
+
+            var boardData = res[KEYS.BOARD_DATA] || {};
+            boards.forEach(function (b) {
+                if (b.legacy) return;
+                var bd = boardData[b.id];
+                ((bd && bd.highlights) || []).forEach(function (h) {
+                    all.push(annotate(h, b));
+                });
+            });
+
+            callback(all);
+        });
+    }
+
+    // Remove a single highlight by ID from a board, leaving the rest of the
+    // board's data untouched. Connections referencing the note are cleaned up
+    // by the Brain board's live-sync when it next loads or syncs.
+    function removeHighlightFromBoard(boardId, isLegacy, noteId, callback) {
+        var done = callback || function () {};
+        var idStr = String(noteId);
+        if (isLegacy) {
+            chrome.storage.local.get(['readmarks'], function (res) {
+                var arr = (res.readmarks || []).filter(function (h) { return String(h.id) !== idStr; });
+                chrome.storage.local.set({ readmarks: arr }, done);
+            });
+            return;
+        }
+        chrome.storage.local.get([KEYS.BOARD_DATA], function (res) {
+            var all = res[KEYS.BOARD_DATA] || {};
+            var bd = all[boardId];
+            if (!bd) { done(); return; }
+            bd.highlights = (bd.highlights || []).filter(function (h) { return String(h.id) !== idStr; });
+            all[boardId] = bd;
+            chrome.storage.local.set({ jotBoardData: all }, done);
+        });
+    }
+
     // Duplicate a note into a target board, assigning a new unique ID to the copy.
     function copyNoteToBoard(note, toBoardId, toIsLegacy, callback) {
         var copy = {};
@@ -250,6 +349,9 @@
         loadBoardData: loadBoardData,
         saveBoardData: saveBoardData,
         appendHighlightToBoard: appendHighlightToBoard,
+        updateHighlightInBoard: updateHighlightInBoard,
+        removeHighlightFromBoard: removeHighlightFromBoard,
+        getAllHighlights: getAllHighlights,
         copyNoteToBoard: copyNoteToBoard
     };
 }());

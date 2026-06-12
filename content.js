@@ -74,6 +74,88 @@ function updateHighlightStats(highlights) {
 
 let highlightRefreshGeneration = 0;
 
+function escapeWidgetHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Fetch highlights from EVERY board (legacy readmarks + jotBoardData), newest first.
+// Falls back to the legacy readmarks key if JotBoardStorage is unavailable.
+function fetchAllHighlights(callback) {
+  function sortNewestFirst(arr) {
+    return arr.slice().sort((a, b) => {
+      const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return tb - ta;
+    });
+  }
+  if (typeof JotBoardStorage !== 'undefined' && extensionContextValid()) {
+    try {
+      JotBoardStorage.getAllHighlights((all) => {
+        if (!extensionContextValid()) return;
+        callback(sortNewestFirst(all));
+      });
+      return;
+    } catch {
+      /* extension context invalidated — fall through */
+    }
+  }
+  safeStorageGet(['readmarks'], (res) => callback(sortNewestFirst(res.readmarks || [])));
+}
+
+// One highlight card for the widget list. Mirrors the Brain board card layout:
+// text, note, user tags, AI tags, then a meta row with source / date / board.
+function highlightItemHtml(h) {
+  let source = h.domain || '';
+  if (!source && h.url) {
+    try { source = new URL(h.url).hostname; } catch { /* invalid url */ }
+  }
+  const aiPills = [];
+  if (h.aiCategory) aiPills.push(h.aiCategory);
+  (h.aiTags || []).forEach((t) => aiPills.push(t));
+  const metaParts = [];
+  if (source) metaParts.push(`<span>From: ${escapeWidgetHtml(source)}</span>`);
+  if (h.timestamp) metaParts.push(`<span>Saved: ${new Date(h.timestamp).toLocaleDateString()}</span>`);
+  if (h._boardName) metaParts.push(`<span>Board: ${escapeWidgetHtml(h._boardName)}</span>`);
+
+  return `
+    <div class="readmark-highlight-item"
+         data-note-id="${escapeWidgetHtml(h.id)}"
+         data-board-id="${escapeWidgetHtml(h._boardId || '')}"
+         data-legacy="${h._isLegacy === false ? 'false' : 'true'}">
+      <button class="readmark-highlight-delete" title="Delete">×</button>
+      <div class="readmark-highlight-text">"${escapeWidgetHtml(h.text)}"</div>
+      ${h.note ? `<div class="readmark-highlight-note">${escapeWidgetHtml(h.note)}</div>` : ''}
+      ${h.tags && h.tags.length ? `
+        <div class="readmark-highlight-tags">
+          ${h.tags.map((t) => `<span class="readmark-tag">#${escapeWidgetHtml(t)}</span>`).join('')}
+        </div>
+      ` : ''}
+      ${aiPills.length ? `
+        <div class="readmark-highlight-tags">
+          ${aiPills.map((t) => `<span class="readmark-tag readmark-ai-tag">#${escapeWidgetHtml(t)}</span>`).join('')}
+        </div>
+      ` : ''}
+      ${metaParts.length ? `<div class="readmark-highlight-meta">${metaParts.join('')}</div>` : ''}
+    </div>
+  `;
+}
+
+function attachHighlightDeleteHandlers(list) {
+  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.readmark-highlight-item');
+      if (!item) return;
+      deleteHighlightById(item.dataset.noteId, item.dataset.boardId, item.dataset.legacy === 'true');
+    };
+  });
+}
+
 function refreshHighlightsFromStorage() {
   const list = document.getElementById('readmark-highlights-list');
   if (!list) return;
@@ -82,10 +164,9 @@ function refreshHighlightsFromStorage() {
   const activeTab = document.querySelector('.readmark-tab.active');
   const tabId = activeTab?.dataset.tab || 'recent';
 
-  safeStorageGet(['readmarks'], (res) => {
+  fetchAllHighlights((highlights) => {
     if (gen !== highlightRefreshGeneration) return;
 
-    const highlights = res.readmarks || [];
     updateHighlightStats(highlights);
 
     if (tabId === 'tags') {
@@ -123,33 +204,10 @@ function hydrateHighlightsList(highlights) {
   list.innerHTML = highlights
     .slice()
     .reverse()
-    .map(
-      (h, idx) => `
-        <div class="readmark-highlight-item" data-index="${highlights.length - 1 - idx}">
-          <button class="readmark-highlight-delete" data-index="${highlights.length - 1 - idx}" title="Delete">×</button>
-          <div class="readmark-highlight-text">"${h.text}"</div>
-          ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
-          ${h.tags && h.tags.length ? `
-            <div class="readmark-highlight-tags">
-              ${h.tags.map((t) => `<span class="readmark-tag">#${t}</span>`).join('')}
-            </div>
-          ` : ''}
-          ${h.timestamp ? `
-            <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
-          ` : ''}
-        </div>
-      `
-    )
+    .map(highlightItemHtml)
     .join('');
 
-  // Attach delete handlers
-  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.index, 10);
-      deleteHighlight(idx);
-    };
-  });
+  attachHighlightDeleteHandlers(list);
 }
 
 // Inject the floating widget into the page
@@ -531,6 +589,23 @@ function injectWidget(initialStorage) {
       font-size: 9px;
       color: #aaa;
       margin-top: 4px;
+    }
+
+    .readmark-highlight-meta {
+      font-size: 9px;
+      color: #aaa;
+      margin-top: 4px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 10px;
+    }
+
+    .readmark-tag.readmark-ai-tag {
+      background: #fff;
+      border-style: dashed;
+      color: #888;
     }
 
     .readmark-highlight-delete {
@@ -931,7 +1006,9 @@ function injectWidget(initialStorage) {
   container.style.display = readmarkEnabled ? '' : 'none';
 
   setupWidgetEvents(initialStorage);
+  // Instant paint from the preloaded legacy highlights, then pull in all boards.
   hydrateHighlightsList((initialStorage && initialStorage.readmarks) || []);
+  refreshHighlightsFromStorage();
   setupTabs();
   setupSearch();
 }
@@ -1258,7 +1335,7 @@ function showSaveDialog(selectedText) {
       <div class="jot-form-group">
         <label class="jot-form-label">Save to board</label>
         <select class="jot-form-input" id="jot-board-select" style="padding:8px 10px;cursor:pointer;">
-          <option value="brain-dump-default">Brain Dump</option>
+          <option value="brain-dump-default" data-legacy="true">Brain Dump</option>
         </select>
         <div id="jot-new-board-wrap" style="display:none;margin-top:8px;">
           <input class="jot-form-input" id="jot-new-board-name" placeholder="New board name..." />
@@ -1476,11 +1553,11 @@ function showSaveDialog(selectedText) {
       return;
     }
 
-    // Determine if the chosen board is legacy (Brain Dump is always legacy)
+    // Determine if the chosen board is legacy (Brain Dump is always legacy,
+    // even if the option element lacks the data-legacy attribute)
     const selectedOpt = boardSelect ? boardSelect.options[boardSelect.selectedIndex] : null;
-    const isLegacy = selectedOpt
-      ? selectedOpt.getAttribute('data-legacy') === 'true'
-      : selectedBoardId === brainDumpId;
+    const isLegacy = selectedBoardId === brainDumpId ||
+      (selectedOpt !== null && selectedOpt.getAttribute('data-legacy') === 'true');
 
     try {
       JotBoardStorage.appendHighlightToBoard(selectedBoardId, isLegacy, highlight, afterSave);
@@ -1544,24 +1621,7 @@ function renderTagsView(highlights, list, selectedTag = null) {
       <div class="readmark-tags-back">
         <button class="readmark-back-btn" id="readmark-back-btn">← Back to tags</button>
       </div>
-      ${filtered.map((h) => {
-        const origIdx = highlights.indexOf(h);
-        return `
-          <div class="readmark-highlight-item" data-index="${origIdx}">
-            <button class="readmark-highlight-delete" data-index="${origIdx}" title="Delete">×</button>
-            <div class="readmark-highlight-text">"${h.text}"</div>
-            ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
-            ${h.tags && h.tags.length ? `
-              <div class="readmark-highlight-tags">
-                ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
-              </div>
-            ` : ''}
-            ${h.timestamp ? `
-              <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
-            ` : ''}
-          </div>
-        `;
-      }).join('')}
+      ${filtered.map(highlightItemHtml).join('')}
     `;
 
     // Attach back button handler
@@ -1573,14 +1633,7 @@ function renderTagsView(highlights, list, selectedTag = null) {
       };
     }
 
-    // Attach delete handlers
-    list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const idx = parseInt(btn.dataset.index, 10);
-        deleteHighlight(idx);
-      };
-    });
+    attachHighlightDeleteHandlers(list);
     return;
   }
 
@@ -1605,10 +1658,22 @@ function renderTagsView(highlights, list, selectedTag = null) {
   });
 }
 
-function deleteHighlight(index) {
+// Delete a highlight by ID from whichever board it lives on.
+// Falls back to a readmarks-only delete if JotBoardStorage is unavailable.
+function deleteHighlightById(noteId, boardId, isLegacy) {
+  if (typeof JotBoardStorage !== 'undefined' && boardId && extensionContextValid()) {
+    try {
+      JotBoardStorage.removeHighlightFromBoard(boardId, isLegacy, noteId, () => {
+        if (!extensionContextValid()) return;
+        refreshHighlightsFromStorage();
+      });
+      return;
+    } catch {
+      /* extension context invalidated — fall through */
+    }
+  }
   safeStorageGet(['readmarks'], (res) => {
-    const highlights = res.readmarks || [];
-    highlights.splice(index, 1);
+    const highlights = (res.readmarks || []).filter(h => String(h.id) !== String(noteId));
     safeStorageSet({ readmarks: highlights }, () => {
       refreshHighlightsFromStorage();
     });
@@ -1623,34 +1688,10 @@ function renderHighlights(highlights, list) {
     return;
   }
 
-  list.innerHTML = highlights
-    .slice()
-    .reverse()
-    .map((h, idx) => `
-      <div class="readmark-highlight-item" data-index="${highlights.length - 1 - idx}">
-        <button class="readmark-highlight-delete" data-index="${highlights.length - 1 - idx}" title="Delete">×</button>
-        <div class="readmark-highlight-text">"${h.text}"</div>
-        ${h.note ? `<div class="readmark-highlight-note">${h.note}</div>` : ''}
-        ${h.tags && h.tags.length ? `
-          <div class="readmark-highlight-tags">
-            ${h.tags.map(t => `<span class="readmark-tag">#${t}</span>`).join('')}
-          </div>
-        ` : ''}
-        ${h.timestamp ? `
-          <div class="readmark-highlight-date">${new Date(h.timestamp).toLocaleDateString()}</div>
-        ` : ''}
-      </div>
-    `)
-    .join('');
+  // fetchAllHighlights already sorts newest-first — render in given order.
+  list.innerHTML = highlights.map(highlightItemHtml).join('');
 
-  // Attach delete handlers
-  list.querySelectorAll('.readmark-highlight-delete').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.index, 10);
-      deleteHighlight(idx);
-    };
-  });
+  attachHighlightDeleteHandlers(list);
 }
 
 function setupSearch() {
@@ -1662,9 +1703,7 @@ function setupSearch() {
   input.addEventListener("input", () => {
     const query = input.value.toLowerCase();
 
-    safeStorageGet(["readmarks"], (res) => {
-      let highlights = res.readmarks || [];
-
+    fetchAllHighlights((highlights) => {
       if (!query) {
         renderHighlights(highlights, list);
         return;
@@ -1729,7 +1768,7 @@ function registerReadmarkContentListeners(syncWidgetFromStorage) {
           }
         }
 
-        if (changes.readmarks) {
+        if (changes.readmarks || changes.jotBoardData) {
           refreshHighlightsFromStorage();
         }
       });

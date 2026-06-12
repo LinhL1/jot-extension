@@ -127,52 +127,75 @@ function loadBoardIntoCanvas(boardId, onLoaded) {
 }
 
 // One-time setup: live-sync new highlights into the active board when content.js
-// captures something. Only runs when the active board is the legacy one because
-// content.js always writes to the flat readmarks/* keys.
+// captures something. Legacy board captures land in the flat readmarks/* keys;
+// non-legacy board captures land in jotBoardData[boardId].highlights. Without the
+// non-legacy branch, a capture to the open board would be lost on the next
+// saveToStorage() snapshot, which only knows about in-memory notes.
 function setupLiveHighlightSync() {
     chrome.storage.onChanged.addListener(function (changes, area) {
         if (area !== 'local') return;
-        if (!currentBoardIsLegacy) return;
-        if (!changes.readmarks && !changes.readmarkConnections) return;
 
-        chrome.storage.local.get(['readmarks', 'readmarkConnections'], function (result) {
-            const highlights = result.readmarks || [];
-            connections = result.readmarkConnections || [];
-
-            const existingIds = new Set(notes.map(n => String(n.id)));
-            const newNotesForTagging = [];
-
-            highlights.forEach(function (h, index) {
-                const hId = String(h.id || '');
-                if (!hId || existingIds.has(hId)) return;
-                const position = getNonOverlappingPosition();
-                const newNote = {
-                    id: hId,
-                    text: h.text,
-                    note: h.note,
-                    tags: h.tags || [],
-                    url: h.url,
-                    timestamp: h.timestamp,
-                    x: typeof h.x === 'number' ? h.x : position.x,
-                    y: typeof h.y === 'number' ? h.y : position.y,
-                    color: h.color || '#ffffff',
-                    aiCategory: h.aiCategory || null,
-                    aiTags: h.aiTags || null
-                };
-                notes.push(newNote);
-                if (!newNote.aiCategory && !newNote.aiTags) {
-                    newNotesForTagging.push(newNote);
-                }
+        if (currentBoardIsLegacy) {
+            if (!changes.readmarks && !changes.readmarkConnections) return;
+            chrome.storage.local.get(['readmarks', 'readmarkConnections'], function (result) {
+                _syncBoardFromStorage(result.readmarks || [], result.readmarkConnections || []);
             });
+            return;
+        }
 
-            const storageIds = new Set(highlights.map(h => String(h.id || '')));
-            notes = notes.filter(n => storageIds.has(String(n.id)));
-
-            renderNotes();
-            updateEmptyState();
-            newNotesForTagging.forEach(_tagNote);
-        });
+        if (!changes.jotBoardData) return;
+        const all = changes.jotBoardData.newValue || {};
+        const data = all[currentBoardId];
+        if (!data) return;
+        _syncBoardFromStorage(data.highlights || [], data.connections || []);
     });
+}
+
+// Merge a storage snapshot of the active board into the in-memory notes array:
+// adds highlights we don't have yet, drops ones deleted elsewhere, and queues
+// brand-new ones for AI tagging. Idempotent — echoes of this tab's own
+// saveToStorage() writes produce no changes and no re-render.
+function _syncBoardFromStorage(highlights, conns) {
+    connections = conns;
+
+    const existingIds = new Set(notes.map(n => String(n.id)));
+    const newNotesForTagging = [];
+    let changed = false;
+
+    highlights.forEach(function (h) {
+        const hId = String(h.id || '');
+        if (!hId || existingIds.has(hId)) return;
+        const position = getNonOverlappingPosition();
+        const newNote = {
+            id: hId,
+            text: h.text,
+            note: h.note,
+            tags: h.tags || [],
+            url: h.url,
+            timestamp: h.timestamp,
+            x: typeof h.x === 'number' ? h.x : position.x,
+            y: typeof h.y === 'number' ? h.y : position.y,
+            color: h.color || '#ffffff',
+            aiCategory: h.aiCategory || null,
+            aiTags: h.aiTags || null
+        };
+        notes.push(newNote);
+        changed = true;
+        if (!newNote.aiCategory && !newNote.aiTags) {
+            newNotesForTagging.push(newNote);
+        }
+    });
+
+    const storageIds = new Set(highlights.map(h => String(h.id || '')));
+    const lengthBefore = notes.length;
+    notes = notes.filter(n => storageIds.has(String(n.id)));
+    if (notes.length !== lengthBefore) changed = true;
+
+    if (changed) {
+        renderNotes();
+        updateEmptyState();
+    }
+    newNotesForTagging.forEach(_tagNote);
 }
 
 // Simple hash function to create consistent hashes from text
@@ -973,6 +996,7 @@ function saveNote() {
             note,
             tags,
             color,
+            timestamp: new Date().toISOString(),
             aiCategory: null,
             aiTags: null,
             x: position.x,
@@ -1123,7 +1147,14 @@ function _tagNote(note) {
         if (result && noteObj) {
             noteObj.aiCategory = result.category;
             noteObj.aiTags = result.tags;
-            saveToStorage();
+            // Merge just this note's tags into storage — a full saveToStorage()
+            // snapshot could clobber highlights captured concurrently in other tabs.
+            JotBoardStorage.updateHighlightInBoard(
+                currentBoardId,
+                currentBoardIsLegacy,
+                noteId,
+                { aiCategory: result.category, aiTags: result.tags }
+            );
         }
         _updateCardTagsDOM(noteId);
     });

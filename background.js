@@ -17,7 +17,8 @@ try {
 } catch (e) {
     console.warn('[Jot/bg] config.js missing — run: node generate-config.js');
 }
-var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+// gemini-2.0-flash-lite has no free-tier quota anymore (429 limit:0) — use 2.5
+var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 var GEMINI_TIMEOUT_MS = 15000;
 
 var GEMINI_PROMPT =
@@ -25,7 +26,7 @@ var GEMINI_PROMPT =
     'Given the following note text, return a JSON object with exactly two fields:\n' +
     '- \'category\': one value from this fixed list only:\n' +
     '  [research, idea, quote, task, reference, inspiration, question, reflection]\n' +
-    '- \'tags\': an array of 2–4 short freeform descriptive tags that capture the specific ' +
+    '- \'tags\': an array of 2–5 short lowercase freeform descriptive tags that capture the specific ' +
     'topic, theme, or subject of the note (e.g. \'typography\', \'color theory\', \'machine learning\')\n\n' +
     'Respond with raw JSON only. No markdown, no backticks, no explanation. Note text: ';
 
@@ -56,7 +57,9 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         clearTimeout(timeoutId);
         if (!response.ok) {
             return response.text().then(function (b) {
-                console.log('[Jot/bg] status:', response.status, JSON.parse(b).error.message.split('\n')[0]);
+                var detail = b;
+                try { detail = JSON.parse(b).error.message.split('\n')[0]; } catch (e) {}
+                console.error('[Jot/bg] Gemini API error, status:', response.status, detail);
                 return null;
             });
         }
@@ -78,15 +81,17 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
                 return;
             }
             sendResponse({
-                category: String(parsed.category),
-                tags: parsed.tags.map(String)
+                category: String(parsed.category).toLowerCase(),
+                tags: parsed.tags.map(function (t) { return String(t).toLowerCase(); })
             });
         } catch (e) {
+            console.error('[Jot/bg] Gemini response parse failed:', e, raw);
             sendResponse(null);
         }
     })
-    .catch(function () {
+    .catch(function (err) {
         clearTimeout(timeoutId);
+        console.error('[Jot/bg] Gemini request failed:', err);
         sendResponse(null);
     });
 
