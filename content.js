@@ -1286,6 +1286,33 @@ function generateHighlightId(text) {
   return `note_${textHash}_${Date.now()}_${randomSuffix}`;
 }
 
+// Fire-and-forget AI tagging for a freshly captured highlight. Mirrors the Brain
+// board's _tagNote: relays to the background worker (which owns the Gemini call)
+// using the same GENERATE_TAGS message tagger.js sends, then merges only the tag
+// fields into the highlight's board. The widget refreshes via the existing
+// storage.onChanged listener. Never blocks the save flow — failures leave
+// aiCategory/aiTags unset and the highlight is backfilled on next board load.
+function tagCapturedHighlight(highlight, boardId, isLegacy) {
+  if (typeof JotBoardStorage === 'undefined' || !extensionContextValid()) return;
+  try {
+    chrome.runtime.sendMessage({ type: 'GENERATE_TAGS', text: highlight.text }, (result) => {
+      if (!extensionContextValid()) return;
+      void chrome.runtime.lastError;
+      if (!result || !result.category || !Array.isArray(result.tags)) return;
+      try {
+        JotBoardStorage.updateHighlightInBoard(boardId, isLegacy, highlight.id, {
+          aiCategory: result.category,
+          aiTags: result.tags
+        });
+      } catch {
+        /* extension context invalidated */
+      }
+    });
+  } catch {
+    /* extension context invalidated */
+  }
+}
+
 function showSaveDialog(selectedText) {
   if (!readmarkEnabled) return;
   if (!extensionContextValid()) return;
@@ -1541,7 +1568,10 @@ function showSaveDialog(selectedText) {
       const newName = (document.getElementById('jot-new-board-name').value || '').trim() || 'New Board';
       JotBoardStorage.createBoard(newName, (newBoard) => {
         try {
-          JotBoardStorage.appendHighlightToBoard(newBoard.id, false, highlight, afterSave);
+          JotBoardStorage.appendHighlightToBoard(newBoard.id, false, highlight, () => {
+            afterSave();
+            tagCapturedHighlight(highlight, newBoard.id, false);
+          });
         } catch (err) {
           safeStorageGet(["readmarks"], (res) => {
             const data = res.readmarks || [];
@@ -1560,7 +1590,10 @@ function showSaveDialog(selectedText) {
       (selectedOpt !== null && selectedOpt.getAttribute('data-legacy') === 'true');
 
     try {
-      JotBoardStorage.appendHighlightToBoard(selectedBoardId, isLegacy, highlight, afterSave);
+      JotBoardStorage.appendHighlightToBoard(selectedBoardId, isLegacy, highlight, () => {
+        afterSave();
+        tagCapturedHighlight(highlight, selectedBoardId, isLegacy);
+      });
     } catch (err) {
       // Context invalidated — fall back to direct write
       safeStorageGet(["readmarks"], (res) => {

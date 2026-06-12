@@ -11,11 +11,10 @@
                     { type: 'GENERATE_TAGS', text: text },
                     function (response) {
                         if (chrome.runtime.lastError) {
-                            console.log('[Jot/tagger] lastError:', chrome.runtime.lastError.message);
+                            void chrome.runtime.lastError;
                             resolve(null);
                             return;
                         }
-                        console.log('[Jot/tagger] raw response from bg:', response);
                         resolve(response || null);
                     }
                 );

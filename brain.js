@@ -211,30 +211,22 @@ function hashString(str) {
 
 // Migration function to regenerate IDs for existing notes
 function migrateNotesToUniqueIds() {
-    console.log('Checking if note IDs need migration...');
-    
     chrome.storage.local.get(['readmarks', 'noteIdMigrationDone'], function(result) {
         const highlights = result.readmarks || [];
         const migrationDone = result.noteIdMigrationDone || false;
-        
-        // Only migrate once
+
         if (migrationDone) {
-            console.log('Migration already completed');
             return;
         }
-        
-        // Check if any notes lack proper unique IDs (old format)
+
         const needsMigration = highlights.some(h => {
             return !h.id || (typeof h.id === 'number') || (String(h.id).length < 10);
         });
-        
+
         if (!needsMigration) {
-            console.log('No migration needed - notes already have proper IDs');
             chrome.storage.local.set({ noteIdMigrationDone: true });
             return;
         }
-        
-        console.log('Migrating', highlights.length, 'notes to new ID format...');
         
         // Regenerate IDs for all notes
         const migratedHighlights = highlights.map((h, index) => {
@@ -242,9 +234,6 @@ function migrateNotesToUniqueIds() {
             const timeStamp = h.timestamp ? new Date(h.timestamp).getTime() : Date.now();
             const randomSuffix = Math.random().toString(36).substring(2, 8);
             const newId = `note_${textHash}_${timeStamp}_${index}_${randomSuffix}`;
-            
-            console.log(`Migrated note ${index}: "${h.text.substring(0, 30)}..." -> ID: ${newId}`);
-            
             return {
                 ...h,
                 id: newId
@@ -276,9 +265,6 @@ function migrateNotesToUniqueIds() {
                 readmarks: migratedHighlights,
                 readmarkConnections: newConnections,
                 noteIdMigrationDone: true
-            }, function() {
-                console.log('Migration complete! Notes and connections updated.');
-                console.log('Please reload the page to see the changes.');
             });
         });
     });
@@ -1004,7 +990,6 @@ function saveNote() {
         };
         notes.push(newNote);
         noteToTag = newNote;
-        console.log('Created new note:', newNote.id);
     }
 
     renderNotes();
@@ -1020,8 +1005,6 @@ function deleteNote(noteId) {
     noteId = String(noteId);
     
     if (!confirm('Are you sure you want to delete this note?')) return;
-    
-    console.log('Deleting note:', noteId);
     
     notes = notes.filter(n => String(n.id) !== noteId);
     connections = connections.filter(conn => 
@@ -1133,25 +1116,33 @@ function _updateCardTagsDOM(noteId) {
 // Saves the note immediately with null tags, then updates storage when tags arrive.
 // Fails silently — never blocks or delays the user.
 function _tagNote(note) {
-    console.log('[Jot] _tagNote called, JotTagger:', !!window.JotTagger);
     if (!window.JotTagger) return;
     var noteId = String(note.id);
+    // Snapshot the originating board at call time. The response may arrive after
+    // the user switches boards (especially with the backfill-on-load pass firing
+    // many tags at once); persisting to the captured board keeps the tag with its
+    // note instead of no-op'ing against whatever board is active later.
+    var boardId = currentBoardId;
+    var boardIsLegacy = currentBoardIsLegacy;
 
     _taggingInProgress.add(noteId);
     _updateCardTagsDOM(noteId);
 
     window.JotTagger.generateNoteTags(note.text).then(function (result) {
-        console.log('[Jot] Gemini result:', result);
         _taggingInProgress.delete(noteId);
-        var noteObj = notes.find(function (n) { return String(n.id) === noteId; });
-        if (result && noteObj) {
-            noteObj.aiCategory = result.category;
-            noteObj.aiTags = result.tags;
+        if (result) {
+            var noteObj = notes.find(function (n) { return String(n.id) === noteId; });
+            // Update in-memory only if the board is still loaded; otherwise the
+            // note has scrolled out of the canvas and storage is the source of truth.
+            if (noteObj) {
+                noteObj.aiCategory = result.category;
+                noteObj.aiTags = result.tags;
+            }
             // Merge just this note's tags into storage — a full saveToStorage()
             // snapshot could clobber highlights captured concurrently in other tabs.
             JotBoardStorage.updateHighlightInBoard(
-                currentBoardId,
-                currentBoardIsLegacy,
+                boardId,
+                boardIsLegacy,
                 noteId,
                 { aiCategory: result.category, aiTags: result.tags }
             );
